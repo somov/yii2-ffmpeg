@@ -68,7 +68,13 @@ class FfmpegTest extends Test
 
         $this->assertFileExists($d->getFileName());
 
+    }
 
+    public function testVideoInfo(){
+
+        /** @var VideoInfoParser $info */
+        $info = (new Ffmpeg())->getVideoInfo('https://cdn.theguardian.tv/mainwebsite/2015/07/20/150716YesMen_desk.mp4');
+        $this->assertNotFalse($info->getVideoStream());
     }
 
 }
