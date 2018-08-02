@@ -45,7 +45,7 @@ class FfprobeProcess extends BaseProcess
         $this->addArgument('-v', 'quiet')
             ->addArgument('-print_format', 'json')
             ->addArgument('-show_format')
-            ->addArgument('-show_streams', $this->source);
+            ->addArgument('-show_streams', "'" . $this->source . "'");
 
         return parent::prepareCommand();
     }
