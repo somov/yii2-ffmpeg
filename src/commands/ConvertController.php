@@ -17,14 +17,14 @@ class ConvertController extends \yii\console\Controller
      * @param string $destination
      * @param string $format
      */
-    public function actionIndex($source, $destination, $format)
+    public function actionIndex($source, $destination, $format = null)
     {
 
         /** @var Ffmpeg $ffmpeg */
         $ffmpeg = \Yii::createObject([
             'class' => Ffmpeg::class,
-            //path to ffmpeg bin
-            'ffmpegPath' => '/usr/local/bin1',
+            //path to ffmpeg bin,
+            //'ffmpegPath' => '/usr/local/bin',
             'on actionBegin' => function ($event) {
                 /** @var  VideoInfoEvent $event */
                 Console::output('Start convert ' . $event->info->getFileName());

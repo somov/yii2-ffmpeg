@@ -33,7 +33,7 @@ class FfprobeProcess extends BaseProcess
 
         $this->source = \Yii::getAlias($this->source);
 
-        if (!file_exists($this->source)) {
+        if (!$this->isRemoteSource() && !file_exists($this->source)) {
             throw new InvalidConfigException('File not exists ' . $this->source);
         }
     }
@@ -48,6 +48,14 @@ class FfprobeProcess extends BaseProcess
             ->addArgument('-show_streams', $this->source);
 
         return parent::prepareCommand();
+    }
+
+    /**
+     * @return bool
+     */
+    private function isRemoteSource()
+    {
+        return (bool)preg_match('/^(http|https)\:\/\//', $this->source);
     }
 
 

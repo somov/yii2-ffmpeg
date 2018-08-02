@@ -26,7 +26,7 @@ class FfmpegProcess extends BaseProcess
 
     public function init()
     {
-        $this->setBufferSize(512);
+        $this->setBufferSize(1024);
         parent::init();
     }
 
@@ -76,4 +76,5 @@ class FfmpegProcess extends BaseProcess
         }
         return true;
     }
+
 }

@@ -40,6 +40,10 @@ class VideoInfoParser extends BaseObject implements ParserInterface
     {
         $a = Json::decode($data);
 
+        if (empty($a)) {
+            return $this;
+        }
+
         $this->initStream('video', $a);
         $this->initStream('audio', $a);
 
