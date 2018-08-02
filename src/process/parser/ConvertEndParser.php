@@ -29,6 +29,7 @@ class ConvertEndParser extends BaseObject implements ParserInterface
 
     private $_data;
 
+
     /**
      * @param mixed $data
      * @return $this
@@ -64,7 +65,7 @@ class ConvertEndParser extends BaseObject implements ParserInterface
 
     public function getSuccess()
     {
-        return ($this->progress === 'end' && $this->_videoSize > 0 && $this->getAudioSize() > 0);
+        return ($this->progress === 'end' && $this->_videoSize > 0);
     }
 
     /**
@@ -72,10 +73,20 @@ class ConvertEndParser extends BaseObject implements ParserInterface
      */
     public function getEndMessage()
     {
-        return $this->_data;
+        $raw = explode("\n",$this->getBuffer());
+         if (count($raw) > 0) {
+             $raw = array_filter($raw, 'trim');
+             return $raw[count($raw)-1];
+         }
+
+        return $this->getBuffer();
     }
 
 
+    public function getBuffer()
+    {
+        return $this->_data;
+    }
 
 
 }

@@ -27,9 +27,40 @@ class FfmpegTest extends Test
         $component->convert('@ext/files/v600.mp4', '@ext/_output/1.nf', 'nfound');
     }
 
-    public function testConvert()
+    public function convertFiles()
+    {
+        return [
+            'mp4-avi' => ['source' => '@ext/files/t.mp4'],
+            'mp4-webm' => [
+                'source' => '@ext/files/t.mp4',
+                'format' => 'webm',
+                [
+                    '-ss' => '00::11'
+                ],
+                'Invalid duration specification'
+            ],
+            'avi-flv' => ['source' => '@ext/files/t.avi', 'format' => 'flv'],
+            'flv-avi' => ['source' => '@ext/files/t.flv', 'format' => 'avi'],
+            //'avi-mp4 big' => ['source' => '@ext/files/big.avi', 'format' => 'mp4']
+            'avi-mp4' => ['source' => '@ext/files/t.avi', 'format' => 'mp4']
+        ];
+    }
+
+
+    /** @dataProvider convertFiles
+     * @param $source
+     * @param $format
+     * @param array $arguments
+     * @param null $exceptionMessage
+     */
+    public function testConvert($source, $format = null, $arguments = [], $exceptionMessage = null)
     {
         $percent = 0;
+
+
+        if (isset($exceptionMessage)) {
+            $this->expectExceptionMessage($exceptionMessage);
+        }
 
         /** @var VideoInfoEvent $eventBegin */
         $eventBegin = null;
@@ -55,7 +86,7 @@ class FfmpegTest extends Test
          * @var VideoInfoParser $d
          */
         list($convertEnd, $s, $d) = $component->convert(
-            '@ext/files/v600.mp4', '@ext/_output/3.avi', 'avi'
+            $source, '@ext/_output/test.' . $format, $format, $arguments
         );
 
         $this->assertSame($convertEnd, $eventEnd->result);
@@ -63,14 +94,14 @@ class FfmpegTest extends Test
         $this->assertEquals($s->getFormatName(), $eventBegin->info->getFormatName());
         $this->assertSame($eventBegin->info, $s);
 
-        $this->assertLessThanOrEqual(100, $percent);
-        $this->assertGreaterThanOrEqual(90, $percent);
+        $this->assertGreaterThanOrEqual(95, $percent);
 
         $this->assertFileExists($d->getFileName());
 
     }
 
-    public function testVideoInfo(){
+    public function testVideoInfo()
+    {
 
         /** @var VideoInfoParser $info */
         $info = (new Ffmpeg())->getVideoInfo('https://cdn.theguardian.tv/mainwebsite/2015/07/20/150716YesMen_desk.mp4');

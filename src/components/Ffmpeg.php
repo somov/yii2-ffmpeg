@@ -15,7 +15,6 @@ use somov\ffmpeg\process\parser\ConvertEndParser;
 use somov\ffmpeg\process\parser\VideoInfoParser;
 use yii\base\Component;
 use yii\base\InvalidValueException;
-use yii\db\Exception;
 
 class Ffmpeg extends Component
 {
@@ -37,13 +36,17 @@ class Ffmpeg extends Component
     /**
      * @param $source
      * @param $destination
-     * @param $format
+     * @param string|null $format
      * @param array $addArguments
      * @return array
-     * @throws Exception
+     * @throws \Exception
      */
-    public function convert($source, $destination, $format, $addArguments = [])
+    public function convert($source, $destination, $format = null, $addArguments = [])
     {
+        if (!isset($format)) {
+            $i = pathinfo($source);
+            $format = $i['extension'];
+        }
 
         if (!$this->getVersion()->formatExists($format)) {
             throw new InvalidValueException('Unknown format ' . $format);
@@ -56,21 +59,20 @@ class Ffmpeg extends Component
             ]
         ));
 
-        /** @var ConvertEndParser $result */
-        $result = ProcessRunner::exec([
-            'class' => FfmpegProcess::class,
-            'commandPath' => $this->ffmpegPath,
-            'bufferReaderCallback' => function ($buffer, $process) use ($info) {
-                $this->readBuffer($buffer, $process, $info);
-            },
+        $process = $this->createProcess([
             'action' => [
                 'convert' => compact('source', 'destination', 'format', 'addArguments')
             ]
-        ]);
+        ], $info);
+
+        /** @var ConvertEndParser $result */
+        $result = ProcessRunner::exec($process);
 
         if (!$result->success) {
-            throw new Exception($result->getEndMessage());
+            throw new \Exception($result->getEndMessage());
         }
+
+        $this->readBuffer($result->getBuffer(), $process, $info);
 
         $sourceInfo = $this->getVideoInfo($destination);
 
@@ -91,12 +93,14 @@ class Ffmpeg extends Component
      * @param string $buffer
      * @param FfmpegProcess $process
      * @param VideoInfoParser $info
+     * @return bool
      */
     protected function readBuffer($buffer, $process, $info)
     {
         if ($process->getActionId() === 'convert') {
-            $this->processingProgress($buffer, $process, $info);
+            return $this->processingProgress($buffer, $process, $info);
         }
+        return true;
     }
 
     /**
@@ -115,12 +119,15 @@ class Ffmpeg extends Component
      * @param string $buffer
      * @param FfmpegProcess $process
      * @param VideoInfoParser $info
+     * @return bool
      */
     private function processingProgress($buffer, $process, $info)
     {
         $pattern = '/^frame=(?\'frame\'\s*[\d]+)\sfps=(?\'fps\'\s*[\d]+).*?size=(?\'size\'\s*[\d]+).*?time=(?\'time\'.*?)\sbitrate=(?\'bitrate\'.*?)kbits/m';
+
         if (preg_match_all($pattern, $buffer, $m, PREG_SET_ORDER)) {
             $raw = reset($m);
+
             $this->trigger(self::EVENT_PROGRESS,
                 (new ProgressEvent(
                     [
@@ -129,6 +136,10 @@ class Ffmpeg extends Component
                     ])
                 )->setRaw($raw));
         }
+        /**
+         * Запрещаем сброс буфера если конвертация окончена
+         */
+        return !(strpos($buffer, 'progress=end') > 1);
     }
 
     /**
@@ -139,6 +150,22 @@ class Ffmpeg extends Component
         return $this->getCompositionFromFactory([ProcessRunner::class, 'exec'], FfmpegVersionProcess::class, [
             'commandPath' => $this->ffmpegPath
         ]);
+    }
+
+    /**
+     * @param array $options
+     * @param VideoInfoParser $info
+     * @return object|FfmpegProcess
+     */
+    protected function createProcess(array $options = [], $info)
+    {
+        return \Yii::createObject(array_merge([
+            'class' => FfmpegProcess::class,
+            'commandPath' => $this->ffmpegPath,
+            'bufferReaderCallback' => function ($buffer, $process) use ($info) {
+                return $this->readBuffer($buffer, $process, $info);
+            },
+        ], $options));
     }
 
 
