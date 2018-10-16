@@ -22,17 +22,16 @@ class Ffmpeg extends Component
 
     use ContainerCompositions;
 
+    const EVENT_GET_SOURCE_INFO = 'getSourceInfo';
     const EVENT_BEGIN = 'actionBegin';
-
     const EVENT_PROGRESS = 'progress';
-
     const EVENT_END = 'actionEnd';
 
     /**
      * @var string
      */
     public $ffmpegPath;
-    
+
     /** Вычеслять путем полного декодирования продолжительность источника если не удалось изъять ffprobe
      * @var bool
      */
@@ -111,6 +110,11 @@ class Ffmpeg extends Component
             'class' => FfprobeProcess::class,
             'source' => $file
         ]);
+
+        $this->trigger(self::EVENT_GET_SOURCE_INFO, new VideoInfoEvent([
+                'info' => $info
+            ]
+        ));
 
         if (!$info->getDuration() && $this->decodeStreamDuration) {
             /** @var ConvertEndParser $result */
