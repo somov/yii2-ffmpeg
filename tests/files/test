@@ -1,3 +1,1 @@
-ffmpeg -i 2.webm -c:v copy 2.mp4
-ffmpeg -f concat -i list.txt -c copy output.mp4 -movflags faststart
-
+Втр Окт 16 15:58:45 EEST 2018

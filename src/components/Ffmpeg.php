@@ -37,6 +37,52 @@ class Ffmpeg extends Component
      */
     public $decodeStreamDuration = true;
 
+
+    /** Запускает процесс FfmpegProcess
+     * @param FfmpegProcess $process
+     * @param VideoInfoParser $sourceInfo
+     * @return array
+     * @throws \Exception
+     */
+    protected function exec(FfmpegProcess $process, VideoInfoParser $sourceInfo)
+    {
+
+        $this->trigger(self::EVENT_BEGIN, new VideoInfoEvent([
+                'info' => $sourceInfo,
+                'process' => $process
+            ]
+        ));
+
+        /** @var ConvertEndParser $result */
+        $result = ProcessRunner::exec($process);
+
+        if (!$result->success) {
+            $message = $result->getEndMessage();
+            if (YII_DEBUG || YII_ENV_TEST) {
+                $message .= print_r($process->getStatus(), true);
+            }
+            throw new \Exception($message);
+        }
+
+        $this->processingProgress($result->getBuffer(), $process, $sourceInfo);
+
+        $p = $process->getActionParams();
+
+        $destinationInfo = $this->getVideoInfo($p['destination']);
+
+        $this->trigger(self::EVENT_END, new EndEvent([
+            'result' => $result,
+            'source' => $sourceInfo,
+            'destination' => $sourceInfo
+        ]));
+
+        return [
+            $result,
+            $sourceInfo,
+            $destinationInfo
+        ];
+    }
+
     /**
      * @param $source
      * @param $destination
@@ -58,45 +104,79 @@ class Ffmpeg extends Component
 
         $info = $this->getVideoInfo($source);
 
-        $this->trigger(self::EVENT_BEGIN, new VideoInfoEvent([
-                'info' => $info
-            ]
-        ));
-
-        $process = $this->createProcess([
+        return $this->exec($this->createProcess([
             'progressInfo' => $info,
             'action' => [
                 'convert' => compact('source', 'destination', 'format', 'addArguments')
             ]
-        ]);
+        ]), $info);
 
-        /** @var ConvertEndParser $result */
-        $result = ProcessRunner::exec($process);
+    }
 
-        if (!$result->success) {
-            $message = $result->getEndMessage();
-            if (YII_DEBUG || YII_ENV_TEST) {
-                $message .= print_r($process->getStatus(), true);
-            }
-            throw new \Exception($message);
+
+    /**
+     * @param array $files
+     * @param string $format
+     * @param string $destination
+     * @param array $convertArguments
+     * @param array $concatArguments
+     * @return array
+     */
+    public function concat(array $files, $format, $destination, $convertArguments = [], $concatArguments = [])
+    {
+        if (count($files) < 1) {
+            throw new InvalidValueException('Empty files list ');
         }
 
-        $this->processingProgress($result->getBuffer(), $process, $info);
+        if (!$this->getVersion()->formatExists($format)) {
+            throw new InvalidValueException('Unknown format ' . $format);
+        }
 
-        $sourceInfo = $this->getVideoInfo($destination);
+        /** @var VideoInfoParser[] $list */
+        $list = [];
 
-        $this->trigger(self::EVENT_END, new EndEvent([
-            'result' => $result,
-            'source' => $info,
-            'destination' => $sourceInfo
-        ]));
+        foreach ($files as $file) {
+            $list[] = $this->getVideoInfo($file);
+        }
 
-        return [
-            $result,
-            $info,
-            $sourceInfo
-        ];
+        foreach ($list as $index => $info) {
+            if ($info->getFormatName('true') <> $format) {
+                $fileName = $info->getFileName();
+                $dst = $fileName . '_.' . $format;
+                /**@var ConvertEndParser $parser */
+                list($parser, , $converted) = $this->convert($fileName, $dst, $format, $convertArguments);
+                if (!$parser->success) {
+                    throw new \RuntimeException("Error convert $fileName to format $format " . $parser->getEndMessage());
+                }
+                $list[$index] = $converted;
+            }
+        }
+
+        try {
+
+            $sourceFile = stream_get_meta_data(tmpfile())['uri'];
+
+            file_put_contents($sourceFile, implode(PHP_EOL, array_map(function ($d) {
+                return 'file ' . $d;
+            }, ArrayHelper::getColumn($list, 'fileName'))));
+
+            /** @var VideoInfoEvent $info */
+            $info = $list[0];
+            $info->setDuration(array_sum(ArrayHelper::getColumn($list, 'duration')));
+
+            $result = $this->exec($this->createProcess([
+                'progressInfo' => $info,
+                'action' => [
+                    'concat' => compact('sourceFile', 'destination', 'concatArguments')
+                ]
+            ]), $info);
+        } finally {
+            unlink($sourceFile);
+        }
+
+        return $result;
     }
+
 
     /**
      * @param $file

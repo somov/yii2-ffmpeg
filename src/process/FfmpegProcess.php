@@ -19,6 +19,9 @@ class FfmpegProcess extends BaseProcess
 
     public $action = 'convert';
 
+
+    public $outputParser = ConvertEndParser::class;
+
     /**
      * @var callable
      */
@@ -28,6 +31,35 @@ class FfmpegProcess extends BaseProcess
     {
         $this->setBufferSize(1024);
         parent::init();
+    }
+
+
+    /** Необходимые аргументы процесса ffmpeg
+     * @param callable $configCall функуия кофнигрутор аргументов действия
+     * @param $destination
+     * @param array $addArguments
+     * @return string
+     */
+    protected function normalizeArguments(callable $configCall, $destination, $addArguments = null)
+    {
+
+        $this->addArgument('-progress', '/dev/stdout ')
+            ->addArgument('-nostdin');
+
+        call_user_func($configCall);
+
+        $this->addArgument('-y');
+
+        if (isset($addArguments)) {
+            $this->addArgument($addArguments);
+        }
+
+        $this->addArgument($destination)
+            //all in stdout
+            ->addArgument('2>&1');
+
+        return $this->prepareCommand();
+
     }
 
     /** Convert video to specific format
@@ -41,30 +73,35 @@ class FfmpegProcess extends BaseProcess
     protected function actionConvert($source, $destination, $format, $addArguments = null)
     {
         $source = \Yii::getAlias($source);
-        $destination = \Yii::getAlias($destination);
 
-        $this->addArgument('-progress', '/dev/stdout ')
-            ->addArgument('-nostdin')
-            ->addArgument('-i', $source)
-            ->addArgument('-f', $format)
-            ->addArgument('-y');
+        return $this->normalizeArguments(function () use ($source, $format) {
+            $this->addArgument('-i', $source)
+                ->addArgument('-f', $format);
+        }, \Yii::getAlias($destination), $addArguments);
 
-        if (isset($addArguments)) {
-            $this->addArgument($addArguments);
-        }
-
-        $this->addArgument($destination)
-            //all in stdout
-            ->addArgument('2>&1');
-
-        $this->outputParser = ConvertEndParser::class;
-
-        return $this->prepareCommand();
     }
 
+    /**
+     * @param $source
+     * @return string
+     */
     protected function actionDecodeStreamDuration($source)
     {
         return $this->actionConvert($source, '-', 'null', ['-tune' => 'fastdecod']);
+    }
+
+    /**
+     * @param $listFile
+     * @param $destination
+     * @param $addArguments
+     * @return string
+     */
+    protected function actionConcat($listFile, $destination, $addArguments)
+    {
+        return $this->normalizeArguments(function () use ($listFile) {
+            $this->addArgument('-f', 'concat')
+                ->addArgument('-i', $listFile);
+        }, \Yii::getAlias($destination), $addArguments);
     }
 
     /**
