@@ -44,7 +44,7 @@ class Ffmpeg extends Component
     public function convert($source, $destination, $format = null, $addArguments = [])
     {
         if (!isset($format)) {
-            $i = pathinfo($source);
+            $i = pathinfo($destination);
             $format = $i['extension'];
         }
 

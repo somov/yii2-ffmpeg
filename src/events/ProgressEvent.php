@@ -132,6 +132,12 @@ class ProgressEvent extends Event
     {
         $passed = $this->getTimeSeconds();
         $total = (int)$this->info->getDuration();
-        return (int)round($passed * 100 / $total);
+
+        if ($total > 0) {
+            return (int)round($passed * 100 / $total);
+        }
+
+        return -1;
+
     }
 }
