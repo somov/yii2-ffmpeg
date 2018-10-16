@@ -30,7 +30,14 @@ class FfmpegTest extends Test
     public function convertFiles()
     {
         return [
-            'mp4-avi' => ['source' => '@ext/files/t.mp4', 'format' => 'avi'],
+            //'mp4-avi' => ['source' => '@ext/files/t.mp4', 'format' => 'avi'],
+            'webm.h264-mp4.h64-copy' => [
+                'source'=>'@ext/files/webm_h264.webm',
+                'format' => 'mp4',
+                'arguments' => [
+                    '-c:v' => 'copy'
+                ]
+                ],
             'mp4-webm' => [
                 'source' => '@ext/files/t.mp4',
                 'format' => 'webm',
@@ -39,10 +46,10 @@ class FfmpegTest extends Test
                 ],
                 'Invalid duration specification'
             ],
-            'avi-flv' => ['source' => '@ext/files/t.avi', 'format' => 'flv'],
-            'flv-avi' => ['source' => '@ext/files/t.flv', 'format' => 'avi'],
+            //'avi-flv' => ['source' => '@ext/files/t.avi', 'format' => 'flv'],
+            //'flv-avi' => ['source' => '@ext/files/t.flv', 'format' => 'avi'],
             //'avi-mp4 big' => ['source' => '@ext/files/big.avi', 'format' => 'mp4']
-            'avi-mp4' => ['source' => '@ext/files/t.avi', 'format' => 'mp4']
+            //'avi-mp4' => ['source' => '@ext/files/t.avi', 'format' => 'mp4'],
         ];
     }
 

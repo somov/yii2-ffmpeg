@@ -62,6 +62,11 @@ class FfmpegProcess extends BaseProcess
         return $this->prepareCommand();
     }
 
+    protected function actionDecodeStreamDuration($source)
+    {
+        return $this->actionConvert($source, '-', 'null', ['-tune' => 'fastdecod']);
+    }
+
     /**
      * Called from [StringBuffered] trait;
      * @return bool

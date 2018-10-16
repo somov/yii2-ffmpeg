@@ -15,6 +15,7 @@ use somov\ffmpeg\process\parser\ConvertEndParser;
 use somov\ffmpeg\process\parser\VideoInfoParser;
 use yii\base\Component;
 use yii\base\InvalidValueException;
+use yii\helpers\ArrayHelper;
 
 class Ffmpeg extends Component
 {
@@ -31,7 +32,11 @@ class Ffmpeg extends Component
      * @var string
      */
     public $ffmpegPath;
-
+    
+    /** Вычеслять путем полного декодирования продолжительность источника если не удалось изъять ffprobe
+     * @var bool
+     */
+    public $decodeStreamDuration = true;
 
     /**
      * @param $source
@@ -60,19 +65,24 @@ class Ffmpeg extends Component
         ));
 
         $process = $this->createProcess([
+            'progressInfo' => $info,
             'action' => [
                 'convert' => compact('source', 'destination', 'format', 'addArguments')
             ]
-        ], $info);
+        ]);
 
         /** @var ConvertEndParser $result */
         $result = ProcessRunner::exec($process);
 
         if (!$result->success) {
-            throw new \Exception($result->getEndMessage());
+            $message = $result->getEndMessage();
+            if (YII_DEBUG || YII_ENV_TEST) {
+                $message .= print_r($process->getStatus(), true);
+            }
+            throw new \Exception($message);
         }
 
-        $this->readBuffer($result->getBuffer(), $process, $info);
+        $this->processingProgress($result->getBuffer(), $process, $info);
 
         $sourceInfo = $this->getVideoInfo($destination);
 
@@ -90,29 +100,37 @@ class Ffmpeg extends Component
     }
 
     /**
-     * @param string $buffer
-     * @param FfmpegProcess $process
-     * @param VideoInfoParser $info
-     * @return bool
-     */
-    protected function readBuffer($buffer, $process, $info)
-    {
-        if ($process->getActionId() === 'convert') {
-            return $this->processingProgress($buffer, $process, $info);
-        }
-        return true;
-    }
-
-    /**
      * @param $file
-     * @return VideoInfoParser|mixed
+     * @return mixed|VideoInfoParser
+     * @throws \Exception
      */
     public function getVideoInfo($file)
     {
-        return ProcessRunner::exec([
+        /** @var VideoInfoParser $info */
+        $info = ProcessRunner::exec([
             'class' => FfprobeProcess::class,
             'source' => $file
         ]);
+
+        if (!$info->getDuration() && $this->decodeStreamDuration) {
+            /** @var ConvertEndParser $result */
+            $result = ProcessRunner::exec($this->createProcess([
+                'progressInfo' => $info,
+                'action' => [
+                    'decodeStreamDuration' => [
+                        'source' => $file
+                    ]
+                ]
+            ]));
+
+            if (!$result->success) {
+                throw new \Exception('Error decode source duration ' . $result->getEndMessage());
+            }
+
+            $info->setDuration($result->getEndDuration());
+        };
+
+        return $info;
     }
 
     /**
@@ -154,18 +172,22 @@ class Ffmpeg extends Component
 
     /**
      * @param array $options
-     * @param VideoInfoParser $info
      * @return object|FfmpegProcess
      */
-    protected function createProcess(array $options = [], $info)
+    protected function createProcess(array $options = [])
     {
-        return \Yii::createObject(array_merge([
+
+        $default = [
             'class' => FfmpegProcess::class,
             'commandPath' => $this->ffmpegPath,
-            'bufferReaderCallback' => function ($buffer, $process) use ($info) {
-                return $this->readBuffer($buffer, $process, $info);
-            },
-        ], $options));
+        ];
+
+        if ($info = ArrayHelper::remove($options, 'progressInfo')) {
+            $default['bufferReaderCallback'] = function ($buffer, $process) use ($info) {
+                return $this->processingProgress($buffer, $process, $info);
+            };
+        }
+        return \Yii::createObject(array_merge($default, $options));
     }
 
 

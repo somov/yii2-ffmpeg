@@ -122,12 +122,22 @@ class VideoInfoParser extends BaseObject implements ParserInterface
     }
 
     /**
+     * @param float $value
+     */
+    public function setDuration($value)
+    {
+        if (isset($this->format)) {
+            $this->format['duration'] = $value;
+        }
+    }
+
+    /**
      * @param string $format
      * @return false|string
      */
     public function getDurationTime($format = "H:i:s")
     {
-        return gmdate($format = "H:i:s", $this->getDuration());
+        return gmdate($format, $this->getDuration());
     }
 
 

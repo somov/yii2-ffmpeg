@@ -73,11 +73,11 @@ class ConvertEndParser extends BaseObject implements ParserInterface
      */
     public function getEndMessage()
     {
-        $raw = explode("\n",$this->getBuffer());
-         if (count($raw) > 0) {
-             $raw = array_filter($raw, 'trim');
-             return $raw[count($raw)-1];
-         }
+        $raw = explode("\n", $this->getBuffer());
+        if (count($raw) > 0) {
+            $raw = array_filter($raw, 'trim');
+            return end($raw);
+        }
 
         return $this->getBuffer();
     }
@@ -88,5 +88,14 @@ class ConvertEndParser extends BaseObject implements ParserInterface
         return $this->_data;
     }
 
-
+    /**
+     * return float
+     */
+    public function getEndDuration()
+    {
+        if (preg_match('/out_time_ms=(\d+)/', $this->getBuffer(), $m)) {
+            return $m[1] / 1000000;
+        }
+        return 0;
+    }
 }
