@@ -15,7 +15,7 @@
     ],
     "require": {
         "yiisoft/yii2": ">=2.0.14",
-        "somov/yii2-common": "~1.0.1",
+        "somov/yii2-common": ">=1.1.1",
         "yiisoft/yii2-imagine": "~2.1.0"
     },
     "autoload": {
