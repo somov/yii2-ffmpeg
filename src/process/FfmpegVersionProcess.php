@@ -70,12 +70,18 @@ class FfmpegVersionProcess extends BaseProcess implements ParserInterface
     }
 
     /**
+     * Get ffmpeg version
      * @return string
      */
     public function getVersion()
     {
-        preg_match('/^(.*?)\s{3,}/', $this->_buffer[0], $m);
-        return $m[1];
+        $line = reset($this->_buffer);
+        if (preg_match('/version\s([\d\.]*)/', $line, $m)) {
+            if (isset($m[1])) {
+                return $m[1];
+            }
+        }
+        return $line;
     }
 
     /**
