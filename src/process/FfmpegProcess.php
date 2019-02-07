@@ -19,7 +19,6 @@ class FfmpegProcess extends BaseProcess
 
     public $action = 'convert';
 
-
     public $outputParser = ConvertEndParser::class;
 
     /**
@@ -100,6 +99,8 @@ class FfmpegProcess extends BaseProcess
     {
         return $this->normalizeArguments(function () use ($listFile) {
             $this->addArgument('-f', 'concat')
+                ->addArgument('-safe', 0)
+                ->addArgument('-err_detect', 'ignore_err')
                 ->addArgument('-i', $listFile);
         }, \Yii::getAlias($destination), $addArguments);
     }

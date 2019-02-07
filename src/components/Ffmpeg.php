@@ -160,7 +160,6 @@ class Ffmpeg extends Component
                 return 'file ' . $d;
             }, ArrayHelper::getColumn($list, 'fileName'))));
 
-            /** @var VideoInfoEvent $info */
             $info = $list[0];
             $info->setDuration(array_sum(ArrayHelper::getColumn($list, 'duration')));
 
