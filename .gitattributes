@@ -6,4 +6,4 @@
 /.gitignore         export-ignore
 /codeception.yml    export-ignore
 /tests              export-ignore
-/run_test.sh        export-ignore
+/README.md          export-ignore

@@ -121,6 +121,7 @@ class Ffmpeg extends Component
      * @param array $convertArguments
      * @param array $concatArguments
      * @return array
+     * @throws \Exception
      */
     public function concat(array $files, $format, $destination, $convertArguments = [], $concatArguments = [])
     {

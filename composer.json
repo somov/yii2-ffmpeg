@@ -1,6 +1,6 @@
 {
     "name": "somov/yii2-ffmpeg",
-    "description": "Yii2 ffmpeg",
+    "description": "Yii2 ffmpeg  wrapper classes ",
     "type": "yii2-extension",
     "keywords": [
         "yii2",
@@ -18,9 +18,45 @@
         "somov/yii2-common": ">=1.1.1",
         "yiisoft/yii2-imagine": "~2.1.0"
     },
+
+    "require-dev": {
+        "codeception/base": "^2.2.3",
+        "codeception/verify": "~0.3.1",
+        "codeception/specify": "~0.4.3",
+        "phpunit/phpunit": "~5"
+    },
+
     "autoload": {
         "psr-4": {
             "somov\\ffmpeg\\": "src"
+        }
+    },
+
+    "autoload-dev": {
+        "classmap": [
+            "tests/unit/"
+        ]
+    },
+
+    "archive": {
+        "exclude": [
+            "/.*",
+            "/tests",
+            "/vendor",
+            "/runtime"
+        ]
+    },
+
+    "repositories": [
+        {
+            "type": "composer",
+            "url": "https://asset-packagist.org"
+        }
+    ],
+    "config": {
+        "process-timeout": 1800,
+        "fxp-asset": {
+            "enabled": false
         }
     }
 }

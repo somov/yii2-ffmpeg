@@ -36,7 +36,7 @@ class FfmpegVersionProcessTest extends Test
     {
         $version = self::$version->getVersion();
 
-        $this->assertContains('ffmpeg version', $version);
+        $this->assertRegExp('/((?:[0-9]+\.?)+)/s', $version);
 
     }
 
