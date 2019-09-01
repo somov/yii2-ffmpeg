@@ -8,17 +8,40 @@
 namespace somov\ffmpeg\process;
 
 
+use somov\common\interfaces\ParserInterface;
 use somov\common\process\BaseProcess;
 use somov\common\process\StringBuffered;
+use somov\ffmpeg\components\Ffmpeg;
 use somov\ffmpeg\process\parser\ConvertEndParser;
 
-class FfmpegProcess extends BaseProcess
+/**
+ * Class FfmpegBaseProcess
+ * @package somov\ffmpeg\process
+ *
+ * @property-read Ffmpeg $ffmpeg
+ */
+abstract class FfmpegBaseProcess extends BaseProcess
 {
 
     use StringBuffered;
 
-    public $action = 'convert';
+    /**
+     * @var string
+     */
 
+    /**
+     * @var string
+     */
+    public $command = 'ffmpeg';
+
+    /**
+     * @var Ffmpeg
+     */
+    private $_ffmpeg;
+
+    /**
+     * @var string|ParserInterface
+     */
     public $outputParser = ConvertEndParser::class;
 
     /**
@@ -26,6 +49,28 @@ class FfmpegProcess extends BaseProcess
      */
     public $bufferReaderCallback;
 
+    /**
+     * FfmpegBaseProcess constructor.
+     * @param $ffmpeg
+     * @param array $config
+     */
+    public function __construct($ffmpeg, array $config = [])
+    {
+        $this->_ffmpeg = $ffmpeg;
+        parent::__construct($config);
+    }
+
+    /**
+     * @return Ffmpeg
+     */
+    public function getFfmpeg()
+    {
+        return $this->_ffmpeg;
+    }
+
+    /**
+     * @inheritdoc
+     */
     public function init()
     {
         $this->setBufferSize(1024);
@@ -61,49 +106,6 @@ class FfmpegProcess extends BaseProcess
 
     }
 
-    /** Convert video to specific format
-     * @param string $source
-     * @param string $destination
-     * @param string $format
-     * @param null $addArguments addition command arguments
-     * @return string
-     * @internal param string $codec
-     */
-    protected function actionConvert($source, $destination, $format, $addArguments = null)
-    {
-        $source = \Yii::getAlias($source);
-
-        return $this->normalizeArguments(function () use ($source, $format) {
-            $this->addArgument('-i', $source)
-                ->addArgument('-f', $format);
-        }, \Yii::getAlias($destination), $addArguments);
-
-    }
-
-    /**
-     * @param $source
-     * @return string
-     */
-    protected function actionDecodeStreamDuration($source)
-    {
-        return $this->actionConvert($source, '-', 'null', ['-tune' => 'fastdecod']);
-    }
-
-    /**
-     * @param $listFile
-     * @param $destination
-     * @param $addArguments
-     * @return string
-     */
-    protected function actionConcat($listFile, $destination, $addArguments)
-    {
-        return $this->normalizeArguments(function () use ($listFile) {
-            $this->addArgument('-f', 'concat')
-                ->addArgument('-safe', 0)
-                ->addArgument('-err_detect', 'ignore_err')
-                ->addArgument('-i', $listFile);
-        }, \Yii::getAlias($destination), $addArguments);
-    }
 
     /**
      * Called from [StringBuffered] trait;

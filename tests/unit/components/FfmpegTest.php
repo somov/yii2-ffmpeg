@@ -24,7 +24,7 @@ class FfmpegTest extends Test
     {
         $this->expectExceptionMessage('Unknown format nfound');
         $component = new Ffmpeg();
-        $component->convert('@ext/files/v600.mp4', '@ext/_output/1.nf', 'nfound');
+        $component->convert('@ext/files/v600.mp4', '@ext/_output/1.nf', 'nfound', []);
     }
 
     public function convertFiles()

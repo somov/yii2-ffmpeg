@@ -1,4 +1,4 @@
-<?php
+<?php /** @noinspection MissedFieldInspection */
 
 namespace somov\ffmpeg\components;
 
@@ -8,15 +8,24 @@ use somov\common\traits\ContainerCompositions;
 use somov\ffmpeg\events\EndEvent;
 use somov\ffmpeg\events\ProgressEvent;
 use somov\ffmpeg\events\VideoInfoEvent;
-use somov\ffmpeg\process\FfmpegProcess;
+use somov\ffmpeg\process\FfmpegBaseProcess;
 use somov\ffmpeg\process\FfmpegVersionProcess;
 use somov\ffmpeg\process\FfprobeProcess;
 use somov\ffmpeg\process\parser\ConvertEndParser;
 use somov\ffmpeg\process\parser\VideoInfoParser;
+use somov\ffmpeg\process\VideoProcess;
 use yii\base\Component;
-use yii\base\InvalidValueException;
+use yii\base\InvalidCallException;
 use yii\helpers\ArrayHelper;
 
+/**
+ * Class Ffmpeg
+ * @package somov\ffmpeg\components
+ *
+ *
+ * @method array convert ($source, $destination, string|null $format, array $addArguments)
+ * @method array concat (array $files, string $format, string $destination, array $convertArguments, array $concatArguments)
+ */
 class Ffmpeg extends Component
 {
 
@@ -32,20 +41,56 @@ class Ffmpeg extends Component
      */
     public $ffmpegPath;
 
-    /** Вычеслять путем полного декодирования продолжительность источника если не удалось изъять ffprobe
+    /**
+     * Вычислять путем полного декодирования продолжительность источника если не удалось изъять ffprobe
      * @var bool
      */
     public $decodeStreamDuration = true;
 
+    /**
+     * Информация о текучем обрабатываемом видео
+     * @var VideoInfoParser[]
+     */
+    private $_runningSourceInfo = [];
+
+
+    /**
+     * @param FfmpegBaseProcess $process
+     * @return VideoInfoParser|null
+     */
+    public function getRunningSourceInfo(FfmpegBaseProcess $process)
+    {
+        return ArrayHelper::getValue($this->_runningSourceInfo, $process->getActionId());
+    }
+
+
+    /**
+     * @return array
+     */
+    protected function processes()
+    {
+        return [
+            'convert' => [
+                'class' => VideoProcess::class,
+                'source', 'destination', 'format', 'addArguments'
+            ],
+            'concat' => [
+                'class' => VideoProcess::class,
+                'files', 'format', 'destination', 'convertArguments', 'concatArguments'
+            ]
+        ];
+    }
+
 
     /** Запускает процесс FfmpegProcess
-     * @param FfmpegProcess $process
+     * @param FfmpegBaseProcess $process
      * @param VideoInfoParser $sourceInfo
      * @return array
      * @throws \Exception
      */
-    protected function exec(FfmpegProcess $process, VideoInfoParser $sourceInfo)
+    protected function exec(FfmpegBaseProcess $process, VideoInfoParser $sourceInfo)
     {
+        $this->_runningSourceInfo[$process->getActionId()] = $sourceInfo;
 
         $this->trigger(self::EVENT_BEGIN, new VideoInfoEvent([
                 'info' => $sourceInfo,
@@ -66,15 +111,15 @@ class Ffmpeg extends Component
 
         $this->processingProgress($result->getBuffer(), $process, $sourceInfo);
 
-        $p = $process->getActionParams();
-
-        $destinationInfo = $this->getVideoInfo($p['destination']);
+        $destinationInfo = $this->getVideoInfo(ArrayHelper::getValue($process->getActionParams(), 'destination'));
 
         $this->trigger(self::EVENT_END, new EndEvent([
             'result' => $result,
             'source' => $sourceInfo,
             'destination' => $sourceInfo
         ]));
+
+        unset($this->_runningSourceInfo[$process->getActionId()]);
 
         return [
             $result,
@@ -83,100 +128,56 @@ class Ffmpeg extends Component
         ];
     }
 
-    /**
-     * @param $source
-     * @param $destination
-     * @param string|null $format
-     * @param array $addArguments
-     * @return array
-     * @throws \Exception
-     */
-    public function convert($source, $destination, $format = null, $addArguments = [])
-    {
-        if (!isset($format)) {
-            $i = pathinfo($destination);
-            $format = $i['extension'];
-        }
-
-        if (!$this->getVersion()->formatExists($format)) {
-            throw new InvalidValueException('Unknown format ' . $format);
-        }
-
-        $info = $this->getVideoInfo($source);
-
-        return $this->exec($this->createProcess([
-            'progressInfo' => $info,
-            'action' => [
-                'convert' => compact('source', 'destination', 'format', 'addArguments')
-            ]
-        ]), $info);
-
-    }
-
 
     /**
-     * @param array $files
-     * @param string $format
-     * @param string $destination
-     * @param array $convertArguments
-     * @param array $concatArguments
-     * @return array
+     * @param $name
+     * @param $params
+     * @return array|bool
      * @throws \Exception
      */
-    public function concat(array $files, $format, $destination, $convertArguments = [], $concatArguments = [])
+    protected function callProgressEvent($name, $params)
     {
-        if (count($files) < 1) {
-            throw new InvalidValueException('Empty files list ');
-        }
+        if ($action = ArrayHelper::getValue($this->processes(), $name)) {
 
-        if (!$this->getVersion()->formatExists($format)) {
-            throw new InvalidValueException('Unknown format ' . $format);
-        }
+            $class = ArrayHelper::remove($action, 'class');
 
-        /** @var VideoInfoParser[] $list */
-        $list = [];
+            $params = array_combine($action, $params);
+            $info = null;
 
-        foreach ($files as $file) {
-            $list[] = $this->getVideoInfo($file);
-        }
-
-        foreach ($list as $index => $info) {
-            if ($info->getFormatName('true') <> $format) {
-                $fileName = $info->getFileName();
-                $dst = $fileName . '_.' . $format;
-                /**@var ConvertEndParser $parser */
-                list($parser, , $converted) = $this->convert($fileName, $dst, $format, $convertArguments);
-                if (!$parser->success) {
-                    throw new \RuntimeException("Error convert $fileName to format $format " . $parser->getEndMessage());
+            if ($source = ArrayHelper::getValue($params, 'source')) {
+                $info = $this->getVideoInfo($params['source']);
+            } else {
+                if (empty($params['files'])) {
+                    throw  new InvalidCallException('Missing video source');
                 }
-                $list[$index] = $converted;
+
+                $info = $this->getVideoInfo($params['files'][0]);
             }
-        }
 
-        try {
-
-            $sourceFile = stream_get_meta_data(tmpfile())['uri'];
-
-            file_put_contents($sourceFile, implode(PHP_EOL, array_map(function ($d) {
-                return 'file ' . $d;
-            }, ArrayHelper::getColumn($list, 'fileName'))));
-
-            $info = $list[0];
-            $info->setDuration(array_sum(ArrayHelper::getColumn($list, 'duration')));
-
-            $result = $this->exec($this->createProcess([
+            return $this->exec($this->createProcess([
+                'class' => $class,
                 'progressInfo' => $info,
-                'action' => [
-                    'concat' => compact('sourceFile', 'destination', 'concatArguments')
-                ]
+                'action' => [$name => $params]
             ]), $info);
-        } finally {
-            unlink($sourceFile);
         }
 
-        return $result;
+        return false;
     }
 
+    /**
+     * @param string $name
+     * @param array $params
+     * @return mixed
+     */
+    public function __call($name, $params)
+    {
+
+        if ($result = $this->callProgressEvent($name, $params)) {
+            return $result;
+        }
+
+        return parent::__call($name, $params);
+    }
 
     /**
      * @param $file
@@ -199,6 +200,7 @@ class Ffmpeg extends Component
         if (!$info->getDuration() && $this->decodeStreamDuration) {
             /** @var ConvertEndParser $result */
             $result = ProcessRunner::exec($this->createProcess([
+                'class' => VideoProcess::class,
                 'progressInfo' => $info,
                 'action' => [
                     'decodeStreamDuration' => [
@@ -219,7 +221,7 @@ class Ffmpeg extends Component
 
     /**
      * @param string $buffer
-     * @param FfmpegProcess $process
+     * @param FfmpegBaseProcess $process
      * @param VideoInfoParser $info
      * @return bool
      */
@@ -256,13 +258,12 @@ class Ffmpeg extends Component
 
     /**
      * @param array $options
-     * @return object|FfmpegProcess
+     * @return object|FfmpegBaseProcess
      */
     protected function createProcess(array $options = [])
     {
 
         $default = [
-            'class' => FfmpegProcess::class,
             'commandPath' => $this->ffmpegPath,
         ];
 
@@ -271,7 +272,7 @@ class Ffmpeg extends Component
                 return $this->processingProgress($buffer, $process, $info);
             };
         }
-        return \Yii::createObject(array_merge($default, $options));
+        return \Yii::createObject(ArrayHelper::merge($default, $options), [$this]);
     }
 
 

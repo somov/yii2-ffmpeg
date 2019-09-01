@@ -7,7 +7,7 @@
 
 namespace somov\ffmpeg\events;
 
-use somov\ffmpeg\process\FfmpegProcess;
+use somov\ffmpeg\process\FfmpegBaseProcess;
 use somov\ffmpeg\process\parser\VideoInfoParser;
 use yii\base\Event;
 
@@ -18,7 +18,7 @@ class VideoInfoEvent extends Event
      */
     public $info;
 
-    /** @var  FfmpegProcess */
+    /** @var  FfmpegBaseProcess */
     public $process;
 
 }
