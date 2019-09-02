@@ -9,10 +9,16 @@ namespace somov\ffmpeg\events;
 
 use somov\ffmpeg\process\parser\ConvertEndParser;
 use somov\ffmpeg\process\parser\VideoInfoParser;
+use yii\base\ArrayAccessTrait;
 use yii\base\Event;
 
-class EndEvent extends Event
+/**
+ * Class EndEvent
+ * @package somov\ffmpeg\events
+ */
+class EndEvent extends Event implements \ArrayAccess
 {
+    use ArrayAccessTrait;
 
     /** @var  ConvertEndParser */
     public $result;
@@ -26,4 +32,6 @@ class EndEvent extends Event
      * @var VideoInfoParser
      */
     public $destination;
+
+
 }

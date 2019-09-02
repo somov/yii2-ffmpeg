@@ -24,32 +24,41 @@ class FfmpegTest extends Test
     {
         $this->expectExceptionMessage('Unknown format nfound');
         $component = new Ffmpeg();
-        $component->convert('@ext/files/v600.mp4', '@ext/_output/1.nf', 'nfound', []);
+        $component->convert('@ext/files/v600.mp4', '@ext/_output/1.nf', 'nfound');
     }
 
     public function convertFiles()
     {
+
+
         return [
-            'mp4-avi' => ['source' => '@ext/files/t.mp4', 'format' => 'avi'],
-            'webm.h264-mp4.h64-copy' => [
-                'source'=>'@ext/files/webm_h264.webm',
-                'format' => 'mp4',
+            'mp4-web_l' => ['source' => '@ext/files/v600.mp4', 'format' => 'webm',
                 'arguments' => [
-                    '-c:v' => 'copy'
+                    '-threads ' => 4,
+                    '-t' => 35,
+                    '-ss' => 66
                 ]
-                ],
-            'mp4-webm' => [
-                'source' => '@ext/files/t.mp4',
-                'format' => 'webm',
-                [
-                    '-ss' => '00::11'
-                ],
-                'Invalid duration specification'
             ],
-            'avi-flv' => ['source' => '@ext/files/t.avi', 'format' => 'flv'],
-            'flv-avi' => ['source' => '@ext/files/t.flv', 'format' => 'avi'],
-            //'avi-mp4 big' => ['source' => '@ext/files/big.avi', 'format' => 'mp4'],
-            'avi-mp4' => ['source' => '@ext/files/t.avi', 'format' => 'mp4'],
+             'mp4-avi' => ['source' => '@ext/files/t.mp4', 'format' => 'avi'],
+             'webm.h264-mp4.h64-copy' => [
+                 'source' => '@ext/files/webm_h264.webm',
+                 'format' => 'mp4',
+                 'arguments' => [
+                     '-c:v' => 'copy'
+                 ]
+             ],
+             'mp4-webm-error' => [
+                 'source' => '@ext/files/t.mp4',
+                 'format' => 'webm',
+                 [
+                     '-ss' => '00::11'
+                 ],
+                 'Invalid duration specification'
+             ],
+             'avi-flv' => ['source' => '@ext/files/t.avi', 'format' => 'flv'],
+             'flv-avi' => ['source' => '@ext/files/t.flv', 'format' => 'avi'],
+             //'avi-mp4 big' => ['source' => '@ext/files/big.avi', 'format' => 'mp4'],
+             'avi-mp4' => ['source' => '@ext/files/t.avi', 'format' => 'mp4'],
         ];
     }
 
@@ -81,6 +90,9 @@ class FfmpegTest extends Test
             'on progress' => function ($event) use (&$percent) {
                 /** @var ProgressEvent $event */
                 $percent = $event->getProgress();
+
+                \Yii::info(basename($event->info->getFileName()). " $percent % "
+                    .$event->processingTime() .'/'. $event->processingTimeEnd() );
             },
             'on actionEnd' => function ($event) use (&$eventEnd) {
                 $eventEnd = $event;
@@ -92,18 +104,24 @@ class FfmpegTest extends Test
          * @var VideoInfoParser $s
          * @var VideoInfoParser $d
          */
-        list($convertEnd, $s, $d) = $component->convert(
+        /*list($convertEnd, $s, $d) = $component->convert(
+            $source, '@ext/_output/test.' . $format, $format, $arguments
+        );*/
+
+
+        $end = $component->convert(
             $source, '@ext/_output/test.' . $format, $format, $arguments
         );
 
-        $this->assertSame($convertEnd, $eventEnd->result);
 
-        $this->assertEquals($s->getFormatName(), $eventBegin->info->getFormatName());
-        $this->assertSame($eventBegin->info, $s);
+        $this->assertSame($end->result, $eventEnd->result);
+
+        $this->assertEquals($end->source->getFormatName(), $eventBegin->info->getFormatName());
+        $this->assertSame($eventBegin->info, $end->source);
 
         $this->assertGreaterThanOrEqual(95, $percent);
 
-        $this->assertFileExists($d->getFileName());
+        $this->assertFileExists($end->destination->getFileName());
 
     }
 

@@ -9,7 +9,6 @@
 namespace somov\ffmpeg\process;
 
 
-use somov\ffmpeg\process\parser\ConvertEndParser;
 use somov\ffmpeg\process\parser\VideoInfoParser;
 use yii\base\InvalidValueException;
 use yii\helpers\ArrayHelper;
@@ -20,7 +19,7 @@ use yii\helpers\ArrayHelper;
  */
 class VideoProcess extends FfmpegBaseProcess
 {
-   
+
     /**
      * @param array $files
      * @param $format
@@ -51,16 +50,16 @@ class VideoProcess extends FfmpegBaseProcess
             if ($info->getFormatName('true') <> $format) {
                 $fileName = $info->getFileName();
                 $dst = $fileName . '_.' . $format;
-                /**@var ConvertEndParser $parser */
-                list($parser, , $converted) = $this->ffmpeg->convert($fileName, $dst, $format, $convertArguments);
-                if (!$parser->success) {
-                    throw new \RuntimeException("Error convert $fileName to format $format " . $parser->getEndMessage());
+
+                $end =  $this->ffmpeg->convert($fileName, $dst, $format, $convertArguments);
+                if (!$end->result->success) {
+                    throw new \RuntimeException("Error convert $fileName to format $format " . $end->result->getEndMessage());
                 }
-                $list[$index] = $converted;
+                $list[$index] = $end->destination;
             }
         }
 
-        $sourceFile = stream_get_meta_data(tmpfile())['uri'];
+        $sourceFile = $this->newTemporaryFile();
 
         file_put_contents($sourceFile, implode(PHP_EOL, array_map(function ($d) {
             return 'file ' . $d;

@@ -7,12 +7,10 @@
  */
 
 
-
 use Codeception\TestCase\Test;
 use somov\ffmpeg\components\Ffmpeg;
 use somov\ffmpeg\events\ProgressEvent;
 use somov\ffmpeg\events\VideoInfoEvent;
-use somov\ffmpeg\process\parser\ConvertEndParser;
 
 
 class FfmpegConcatTest extends Test
@@ -45,20 +43,16 @@ class FfmpegConcatTest extends Test
             }
         ]);
 
-        /**
-         * @var ConvertEndParser $convertEnd
-         */
-        list($convertEnd, $s, $d) = $component->concat([
+        $end = $component->concat([
             '@ext/files/concat/0.webm',
             '@ext/files/concat/1.webm',
             '@ext/files/concat/2.webm',
         ], 'mp4', '@ext/_output/test_concat.mp4', ['-c:v' => 'copy'], ['-c:v' => 'copy', '-movflags' => 'faststart']);
 
-        //$this->assertSame($duration % 100, $convertEnd ->getEndDuration() % 100);
 
         $this->assertGreaterThanOrEqual(95, $progress);
 
-        $this->assertFileExists($d->getFileName());
+        $this->assertFileExists($end->destination->getFileName());
 
 
     }

@@ -125,13 +125,61 @@ class ProgressEvent extends Event
         return strtotime('1970-01-01 ' . $formattedTime . 'GMT');
     }
 
+
+    /**
+     * @return double
+     */
+    public function getStartTimeSeconds()
+    {
+        if (empty($this->process)) {
+            return 0;
+        }
+        return ArrayHelper::getValue($this->process->getActionParams(), 'addArguments.-ss', 0);
+    }
+
+    /**
+     * @return double
+     */
+    public function getEndTimeSeconds()
+    {
+        if (empty($this->process)) {
+            return (int)$this->info->getDuration();
+        }
+
+        return ArrayHelper::getValue($this->process->getActionParams(), 'addArguments.-t',
+            (int)$this->info->getDuration());
+    }
+
+
+    /**
+     * @return string
+     */
+    public function processingTime()
+    {
+        return gmdate('H:i:s', $this->getStartTimeSeconds() + $this->getTimeSeconds());
+    }
+
+
+    /**
+     * @return string
+     */
+    public function processingTimeEnd()
+    {
+        return gmdate('H:i:s', $this->getEndTimeSeconds() + $this->getStartTimeSeconds());
+    }
+
     /**
      * @return float
      */
     public function getProgress()
     {
         $passed = $this->getTimeSeconds();
-        $total = (int)$this->info->getDuration();
+
+        $total = $this->getEndTimeSeconds();
+
+        if ($passed > $total) {
+            $passed = $total;
+        }
 
         if ($total > 0) {
             return (int)round($passed * 100 / $total);
@@ -140,4 +188,5 @@ class ProgressEvent extends Event
         return -1;
 
     }
+
 }

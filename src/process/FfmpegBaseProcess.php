@@ -8,17 +8,23 @@
 namespace somov\ffmpeg\process;
 
 
+use somov\common\helpers\FileHelper;
 use somov\common\interfaces\ParserInterface;
 use somov\common\process\BaseProcess;
 use somov\common\process\StringBuffered;
 use somov\ffmpeg\components\Ffmpeg;
+use somov\ffmpeg\events\EndEvent;
 use somov\ffmpeg\process\parser\ConvertEndParser;
+use yii\helpers\Json;
+use yii\helpers\StringHelper;
 
 /**
  * Class FfmpegBaseProcess
  * @package somov\ffmpeg\process
  *
  * @property-read Ffmpeg $ffmpeg
+ *
+ * @method EndEvent configureEndEvent(EndEvent $event)
  */
 abstract class FfmpegBaseProcess extends BaseProcess
 {
@@ -50,6 +56,16 @@ abstract class FfmpegBaseProcess extends BaseProcess
     public $bufferReaderCallback;
 
     /**
+     * @var string
+     */
+    public $workingDirAlias = '@runtime/tmp/ffmpeg';
+
+    /**
+     * @var string
+     */
+    private $_workingDir;
+
+    /**
      * FfmpegBaseProcess constructor.
      * @param $ffmpeg
      * @param array $config
@@ -61,6 +77,19 @@ abstract class FfmpegBaseProcess extends BaseProcess
     }
 
     /**
+     *
+     */
+    public function __destruct()
+    {
+        if ($dir = $this->getWorkingDir()) {
+            try {
+                FileHelper::removeDirectory($dir);
+            } catch (\Exception $exception) {
+            }
+        }
+    }
+
+    /**
      * @return Ffmpeg
      */
     public function getFfmpeg()
@@ -68,23 +97,14 @@ abstract class FfmpegBaseProcess extends BaseProcess
         return $this->_ffmpeg;
     }
 
-    /**
-     * @inheritdoc
-     */
-    public function init()
-    {
-        $this->setBufferSize(1024);
-        parent::init();
-    }
-
 
     /** Необходимые аргументы процесса ffmpeg
-     * @param callable $configCall функуия кофнигрутор аргументов действия
-     * @param $destination
+     * @param callable $configCall функция настройки аргументов действия
+     * @param string|null $destination
      * @param array $addArguments
      * @return string
      */
-    protected function normalizeArguments(callable $configCall, $destination, $addArguments = null)
+    protected function normalizeArguments(callable $configCall, $destination = null, $addArguments = null)
     {
 
         $this->addArgument('-progress', '/dev/stdout ')
@@ -98,9 +118,13 @@ abstract class FfmpegBaseProcess extends BaseProcess
             $this->addArgument($addArguments);
         }
 
-        $this->addArgument($destination)
-            //all in stdout
-            ->addArgument('2>&1');
+        if (isset($destination)) {
+            $this->addArgument($destination);
+        }
+
+
+        //all in stdout
+        $this->addArgument('2>&1');
 
         return $this->prepareCommand();
 
@@ -121,5 +145,44 @@ abstract class FfmpegBaseProcess extends BaseProcess
         }
         return true;
     }
+
+    /**
+     * @param array $key
+     * @param bool $reCreateDir
+     * @return mixed
+     * @throws \yii\base\ErrorException
+     * @throws \yii\base\Exception
+     */
+    protected function newTemporaryFile($key = [], $reCreateDir = true)
+    {
+        $dir = \Yii::getAlias($this->workingDirAlias);
+
+        if (empty($key)) {
+            $key = range($key, 100);
+            shuffle($key);
+            $key = array_slice($key ,0,10);
+        }
+        $this->_workingDir = $dir . DIRECTORY_SEPARATOR . sha1(Json::encode($key));
+
+        if ($reCreateDir && is_dir($this->_workingDir)) {
+            FileHelper::removeDirectory($this->_workingDir);
+        }
+
+        FileHelper::createDirectory($this->_workingDir);
+
+
+        return $this->_workingDir . DIRECTORY_SEPARATOR . StringHelper::basename(stream_get_meta_data(tmpfile())['uri']);
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getWorkingDir()
+    {
+        return $this->_workingDir;
+    }
+
+
+
 
 }

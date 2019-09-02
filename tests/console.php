@@ -30,8 +30,10 @@ return [
             'targets' => [
                 [
                     'class' => 'yii\log\FileTarget',
-                    'logFile' => '@runtime/test.log',
-                    'logVars' => []
+                    'logFile' => '@runtime/logs/test.log',
+                    'categories' => ['application'],
+                    'levels' => ['error', 'trace', 'warning', 'info'],
+                    'logVars' => [],
                 ],
             ],
         ],

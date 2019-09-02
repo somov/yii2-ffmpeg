@@ -6,11 +6,13 @@ namespace somov\ffmpeg\components;
 use somov\common\components\ProcessRunner;
 use somov\common\traits\ContainerCompositions;
 use somov\ffmpeg\events\EndEvent;
+use somov\ffmpeg\events\ImageEndEvent;
 use somov\ffmpeg\events\ProgressEvent;
 use somov\ffmpeg\events\VideoInfoEvent;
 use somov\ffmpeg\process\FfmpegBaseProcess;
 use somov\ffmpeg\process\FfmpegVersionProcess;
 use somov\ffmpeg\process\FfprobeProcess;
+use somov\ffmpeg\process\ImageProcess;
 use somov\ffmpeg\process\parser\ConvertEndParser;
 use somov\ffmpeg\process\parser\VideoInfoParser;
 use somov\ffmpeg\process\VideoProcess;
@@ -23,8 +25,10 @@ use yii\helpers\ArrayHelper;
  * @package somov\ffmpeg\components
  *
  *
- * @method array convert ($source, $destination, string|null $format, array $addArguments)
- * @method array concat (array $files, string $format, string $destination, array $convertArguments, array $concatArguments)
+ * @method EndEvent convert ($source, $destination, string|null $format, array $addArguments = [])
+ * @method EndEvent concat (array $files, string $format, string $destination, array $convertArguments = [], array $concatArguments = [])
+ * @method ImageEndEvent createImage(string $source, float $start = 0, $width = null, $height = null, $format = 'image2')
+ * @method ImageEndEvent createImagesForPeriod(string $source, integer $count, integer $width = null, integer $height = null, float $start = null, float $end = null, string $format = 'image2', string $extension = 'jpg')
  */
 class Ffmpeg extends Component
 {
@@ -70,14 +74,10 @@ class Ffmpeg extends Component
     protected function processes()
     {
         return [
-            'convert' => [
-                'class' => VideoProcess::class,
-                'source', 'destination', 'format', 'addArguments'
-            ],
-            'concat' => [
-                'class' => VideoProcess::class,
-                'files', 'format', 'destination', 'convertArguments', 'concatArguments'
-            ]
+            'convert' => VideoProcess::class,
+            'concat' => VideoProcess::class,
+            'createImage' => ImageProcess::class,
+            'createImagesForPeriod' => ImageProcess::class,
         ];
     }
 
@@ -85,7 +85,7 @@ class Ffmpeg extends Component
     /** Запускает процесс FfmpegProcess
      * @param FfmpegBaseProcess $process
      * @param VideoInfoParser $sourceInfo
-     * @return array
+     * @return array|EndEvent
      * @throws \Exception
      */
     protected function exec(FfmpegBaseProcess $process, VideoInfoParser $sourceInfo)
@@ -109,23 +109,29 @@ class Ffmpeg extends Component
             throw new \Exception($message);
         }
 
-        $this->processingProgress($result->getBuffer(), $process, $sourceInfo);
+       $this->processingProgress($result->getBuffer(), $process, $sourceInfo);
 
-        $destinationInfo = $this->getVideoInfo(ArrayHelper::getValue($process->getActionParams(), 'destination'));
+        $destinationInfo = null;
 
-        $this->trigger(self::EVENT_END, new EndEvent([
+        if ($destination = ArrayHelper::getValue($process->getActionParams(), 'destination')) {
+            $destinationInfo = $this->getVideoInfo($destination);
+        }
+
+        $event = new EndEvent([
             'result' => $result,
             'source' => $sourceInfo,
-            'destination' => $sourceInfo
-        ]));
+            'destination' => $destinationInfo
+        ]);
+
+        if ($process->hasMethod('configureEndEvent')) {
+            $process->configureEndEvent($event);
+        }
+
+        $this->trigger(self::EVENT_END, $event);
 
         unset($this->_runningSourceInfo[$process->getActionId()]);
 
-        return [
-            $result,
-            $sourceInfo,
-            $destinationInfo
-        ];
+        return $event;
     }
 
 
@@ -135,13 +141,25 @@ class Ffmpeg extends Component
      * @return array|bool
      * @throws \Exception
      */
-    protected function callProgressEvent($name, $params)
+    protected function callProgressAction($name, $params)
     {
-        if ($action = ArrayHelper::getValue($this->processes(), $name)) {
+        if ($class = ArrayHelper::getValue($this->processes(), $name)) {
 
-            $class = ArrayHelper::remove($action, 'class');
+            $reflection = new \ReflectionMethod($class, 'action' . ucfirst($name));
+            $reflection->setAccessible(true);
+            $reflectionParams = ArrayHelper::map($reflection->getParameters(), function ($p) {
+                /** @var \ReflectionParameter $p */
+                return $p->getPosition();
+            }, function ($p) use ($params) {
+                /** @var \ReflectionParameter $p */
+                return [
+                    'name' => $p->getName(),
+                    'value' => ArrayHelper::getValue($params, $p->getPosition(), ($p->isOptional()) ? $p->getDefaultValue() : null)
+                ];
+            });
 
-            $params = array_combine($action, $params);
+            $params = ArrayHelper::map($reflectionParams, 'name', 'value');
+
             $info = null;
 
             if ($source = ArrayHelper::getValue($params, 'source')) {
@@ -157,7 +175,8 @@ class Ffmpeg extends Component
             return $this->exec($this->createProcess([
                 'class' => $class,
                 'progressInfo' => $info,
-                'action' => [$name => $params]
+                'action' => [$name => $params],
+                'bufferSize' => 512
             ]), $info);
         }
 
@@ -165,14 +184,12 @@ class Ffmpeg extends Component
     }
 
     /**
-     * @param string $name
-     * @param array $params
-     * @return mixed
+     * @inheritdoc
      */
     public function __call($name, $params)
     {
 
-        if ($result = $this->callProgressEvent($name, $params)) {
+        if ($result = $this->callProgressAction($name, $params)) {
             return $result;
         }
 
@@ -227,23 +244,35 @@ class Ffmpeg extends Component
      */
     private function processingProgress($buffer, $process, $info)
     {
-        $pattern = '/^frame=(?\'frame\'\s*[\d]+)\sfps=(?\'fps\'\s*[\d]+).*?size=(?\'size\'\s*[\d]+).*?time=(?\'time\'.*?)\sbitrate=(?\'bitrate\'.*?)kbits/m';
+
+        $pattern = "/^frame=(?'frame'\s*[\d]+)\sfps=(?'fps'\s*.*?)\s.*?size=(?'size'\s*.*?\s).*?time=(?'time'.*?)\sbitrate=(?'bitrate'.*?\s)/m";
+        $raw = [];
 
         if (preg_match_all($pattern, $buffer, $m, PREG_SET_ORDER)) {
             $raw = reset($m);
+        }
 
-            $this->trigger(self::EVENT_PROGRESS,
-                (new ProgressEvent(
-                    [
+        $isRunning = !(strpos($buffer, 'progress=end') > 1);
+
+        if (!$isRunning || isset($raw['frame'])) {
+
+            if (!$isRunning) {
+                $raw['time'] = $info->getDurationTime();
+            }
+
+            $this->trigger(self::EVENT_PROGRESS, (new ProgressEvent([
                         'info' => $info,
                         'process' => $process
                     ])
                 )->setRaw($raw));
+
+            /**
+             * Запрещаем сброс буфера если процесс завершен
+             */
+            return $isRunning;
         }
-        /**
-         * Запрещаем сброс буфера если конвертация окончена
-         */
-        return !(strpos($buffer, 'progress=end') > 1);
+
+        return true;
     }
 
     /**
