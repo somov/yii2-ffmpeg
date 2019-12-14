@@ -109,7 +109,7 @@ class Ffmpeg extends Component
             throw new \Exception($message);
         }
 
-       $this->processingProgress($result->getBuffer(), $process, $sourceInfo);
+        $this->processingProgress($result->getBuffer(), $process, $sourceInfo);
 
         $destinationInfo = null;
 
@@ -244,32 +244,19 @@ class Ffmpeg extends Component
      */
     private function processingProgress($buffer, $process, $info)
     {
-
-        $pattern = "/^frame=(?'frame'\s*[\d]+)\sfps=(?'fps'\s*.*?)\s.*?size=(?'size'\s*.*?\s).*?time=(?'time'.*?)\sbitrate=(?'bitrate'.*?\s)/m";
-        $raw = [];
+        //https://regex101.com/r/hXURld/9
+        $pattern = "#bitrate=\s*(?'bitrate'(N\/A|\d*(?:\.\d+)?)).*total_size=\s*(?'size'(N\/A|\d+)).*out_time_ms=\s*(?'time_ms'\d+).*speed=\s*(?'speed'\d*(?:\.\d+)?).*progress=\s*(?'state'\w+)#s";
 
         if (preg_match_all($pattern, $buffer, $m, PREG_SET_ORDER)) {
-            $raw = reset($m);
-        }
+            $event = (new ProgressEvent(reset($m), [
+                'info' => $info,
+                'process' => $process
+            ]));
 
-        $isRunning = !(strpos($buffer, 'progress=end') > 1);
+            $this->trigger(self::EVENT_PROGRESS, $event);
 
-        if (!$isRunning || isset($raw['frame'])) {
+            return $event->isRunning();
 
-            if (!$isRunning) {
-                $raw['time'] = $info->getDurationTime();
-            }
-
-            $this->trigger(self::EVENT_PROGRESS, (new ProgressEvent([
-                        'info' => $info,
-                        'process' => $process
-                    ])
-                )->setRaw($raw));
-
-            /**
-             * Запрещаем сброс буфера если процесс завершен
-             */
-            return $isRunning;
         }
 
         return true;

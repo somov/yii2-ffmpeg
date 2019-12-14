@@ -18,17 +18,17 @@ class ProgressEventTest extends Test
 
     public function testEvent()
     {
-        $event = new ProgressEvent();
+        $event = new ProgressEvent([
+            'size' =>'692',
+
+            'bitrate' => ' 559.2',
+            'state' => 'c',
+            'speed' => 1,
+            'time_ms' => 190.13 * 1000000
+        ]);
         $event->info = (new Ffmpeg())->getVideoInfo('@ext/files/v600.mp4');
 
-        $event->setRaw([
-                'size' => '     692',
-                'time' => '00:03:10.13',
-                'frame' => '  299',
-                'bitrate' => ' 559.2',
-                'fps' => '0',
-            ]
-        );
+
 
         $this->assertEquals(692, $event->getSize());
         $this->assertEquals(65, $event->getProgress());

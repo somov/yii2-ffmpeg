@@ -15,7 +15,6 @@ use yii\helpers\ArrayHelper;
 /**
  *
  * @property int $size;
- * @property int $fps
  * @property float $bitrate
  *
  *
@@ -38,50 +37,49 @@ class ProgressEvent extends Event
     /**
      * @var string
      */
-    protected $time;
+    private $_time_ms;
 
     /**
      * @var string
      *
      */
-    protected $size;
+    private $_size;
 
     /**
      * @var string
      */
-    protected $bitrate;
+    private $_bitrate;
 
     /**
      * @var string
      */
-    protected $frame;
+    private $_speed;
 
     /**
      * @var string
      */
-    protected $fps;
+    private $_state;
 
     /**
-     * @param $raw
-     * @return $this
+     * ProgressEvent constructor.
+     * @param array $raw
+     * @param array $config
      */
-    public function setRaw($raw)
+    public function __construct(array $raw, array $config = [])
     {
-        $raw = ArrayHelper::filter($raw, ['size', 'time', 'frame', 'bitrate', 'fps']);
-
-        foreach (array_map('trim', $raw) as $property => $value) {
-            $this->$property = $value;
+        foreach (['time_ms', 'bitrate', 'size', 'speed', 'state'] as $property) {
+            $this->{'_' . $property} = $raw[$property];
         }
-
-        return $this;
+        parent::__construct($config);
     }
+
 
     /**
      * @return string
      */
     public function getTime()
     {
-        return $this->time;
+        return gmdate("H:i:s", $this->getTimeSeconds());
     }
 
     /**
@@ -89,40 +87,24 @@ class ProgressEvent extends Event
      */
     public function getSize()
     {
-        return (int)$this->size;
+        return (int)$this->_size;
     }
 
     /**
-     * @return string
+     * @return float
      */
     public function getBitrate()
     {
-        return (float)$this->bitrate;
+        return (float)$this->_bitrate;
     }
 
-    /**
-     * @return string
-     */
-    public function getFrame()
-    {
-        return (integer)$this->frame;
-    }
-
-    /**
-     * @return string
-     */
-    public function getFps()
-    {
-        return (integer)$this->fps;
-    }
 
     /**
      * @return false|int
      */
     public function getTimeSeconds()
     {
-        $formattedTime = (strlen($this->time) <= 5) ? '00:' . $this->time : $this->time;
-        return strtotime('1970-01-01 ' . $formattedTime . 'GMT');
+        return (isset($this->_time_ms)) ? (integer)$this->_time_ms / 1000000 : 0;
     }
 
 
@@ -173,6 +155,10 @@ class ProgressEvent extends Event
      */
     public function getProgress()
     {
+        if ($this->isEnd()) {
+            return 100;
+        }
+
         $passed = $this->getTimeSeconds();
 
         $total = $this->getEndTimeSeconds();
@@ -187,6 +173,38 @@ class ProgressEvent extends Event
 
         return -1;
 
+    }
+
+    /**
+     * @return string
+     */
+    public function getSpeed()
+    {
+        return $this->_speed;
+    }
+
+    /**
+     * @return float
+     */
+    public function getState()
+    {
+        return $this->_state;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isEnd()
+    {
+        return $this->getState() === 'end';
+    }
+
+    /**
+     * @return bool
+     */
+    public function isRunning()
+    {
+        return !$this->isEnd();
     }
 
 }

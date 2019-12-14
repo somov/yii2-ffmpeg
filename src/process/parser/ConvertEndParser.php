@@ -23,10 +23,6 @@ class ConvertEndParser extends BaseObject implements ParserInterface
 
     protected $progress = '';
 
-    private $_videoSize = 0;
-
-    private $_audioSize = 0;
-
     private $_data;
 
 
@@ -37,13 +33,6 @@ class ConvertEndParser extends BaseObject implements ParserInterface
     public function parse($data)
     {
         $this->_data = $data;
-
-        if (preg_match('/progress=(?\'progress\'\w+)\svideo:(?\'videoSize\'\w+)\saudio:(?\'audioSize\'\w+)/m',
-            $data, $m)) {
-            $this->progress = $m['progress'];
-            $this->_videoSize = (int)rtrim($m['videoSize'], 'kb');
-            $this->_audioSize = (int)rtrim($m['audioSize'], 'kb');
-        }
         return $this;
     }
 
@@ -52,7 +41,7 @@ class ConvertEndParser extends BaseObject implements ParserInterface
      */
     public function getVideoSize()
     {
-        return $this->_videoSize;
+        return 0;
     }
 
     /**
@@ -60,12 +49,12 @@ class ConvertEndParser extends BaseObject implements ParserInterface
      */
     public function getAudioSize()
     {
-        return $this->_audioSize;
+        return 0;
     }
 
     public function getSuccess()
     {
-        return ($this->progress === 'end' && $this->_videoSize > 0);
+        return $this->getEndMessage() === 'progress=end';
     }
 
     /**
