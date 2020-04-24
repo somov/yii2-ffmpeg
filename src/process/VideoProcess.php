@@ -9,6 +9,7 @@
 namespace somov\ffmpeg\process;
 
 
+use somov\ffmpeg\components\FfmpegException;
 use somov\ffmpeg\process\parser\VideoInfoParser;
 use yii\base\InvalidValueException;
 use yii\helpers\ArrayHelper;
@@ -51,7 +52,7 @@ class VideoProcess extends FfmpegBaseProcess
                 $fileName = $info->getFileName();
                 $dst = $fileName . '_.' . $format;
 
-                $end =  $this->ffmpeg->convert($fileName, $dst, $format, $convertArguments);
+                $end = $this->ffmpeg->convert($fileName, $dst, $format, $convertArguments);
                 if (!$end->result->success) {
                     throw new \RuntimeException("Error convert $fileName to format $format " . $end->result->getEndMessage());
                 }
@@ -91,21 +92,25 @@ class VideoProcess extends FfmpegBaseProcess
     protected function actionConvert($source, $destination, $format, $addArguments = null)
     {
 
-        if (!isset($format)) {
+        if (!isset($format) && isset($destination)) {
             $i = pathinfo($destination);
             $format = $i['extension'];
         }
 
-        if (!$this->ffmpeg->getVersion()->formatExists($format)) {
-            throw new InvalidValueException('Unknown format ' . $format);
+        if (isset($format) && ($format) && !$this->ffmpeg->getVersion()->formatExists($format)) {
+            throw new FfmpegException($this,'Unknown format ' . $format);
         }
 
-
-        $source = \Yii::getAlias($source);
+        $source = realpath(\Yii::getAlias($source));
 
         return $this->normalizeArguments(function () use ($source, $format) {
-            $this->addArgument('-i', $source)
-                ->addArgument('-f', $format);
+
+            $this->addArgument('-i', $source);
+
+            if (isset($format)  && $format) {
+                $this->addArgument('-f', $format);
+            }
+
         }, \Yii::getAlias($destination), $addArguments);
 
     }

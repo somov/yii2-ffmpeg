@@ -108,8 +108,10 @@ abstract class FfmpegBaseProcess extends BaseProcess
     {
 
         $this->addArgument('-progress', '/dev/stdout ')
+            ->addArgument('-hide_banner')
             ->addArgument('-loglevel', 'error')
             ->addArgument('-nostdin');
+
 
         call_user_func($configCall);
 

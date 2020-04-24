@@ -86,7 +86,7 @@ class Ffmpeg extends Component
      * @param FfmpegBaseProcess $process
      * @param VideoInfoParser $sourceInfo
      * @return array|EndEvent
-     * @throws \Exception
+     * @throws FfmpegException
      */
     protected function exec(FfmpegBaseProcess $process, VideoInfoParser $sourceInfo)
     {
@@ -102,11 +102,9 @@ class Ffmpeg extends Component
         $result = ProcessRunner::exec($process);
 
         if (!$result->success) {
-            $message = $result->getEndMessage();
-            if (YII_DEBUG || YII_ENV_TEST) {
-                $message .= print_r($process->getStatus(), true);
-            }
-            throw new \Exception($message);
+            $exception  = new FfmpegException($process, $result->getEndMessage());
+            $exception->ffmpeg = $this;
+            throw $exception;
         }
 
         $this->processingProgress($result->getBuffer(), $process, $sourceInfo);
@@ -263,12 +261,14 @@ class Ffmpeg extends Component
     }
 
     /**
+     * @param bool $withCodecs
      * @return FfmpegVersionProcess
      */
-    public function getVersion()
+    public function getVersion($withCodecs = false)
     {
         return $this->getCompositionFromFactory([ProcessRunner::class, 'exec'], FfmpegVersionProcess::class, [
-            'commandPath' => $this->ffmpegPath
+            'commandPath' => $this->ffmpegPath,
+            'isGetCodecs' => $withCodecs
         ]);
     }
 
