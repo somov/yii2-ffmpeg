@@ -190,5 +190,19 @@ class VideoInfoParser extends BaseObject implements ParserInterface
         return (isset($this->format['filename'])) ? $this->format['filename'] : false;
     }
 
+    /**
+     * @return int
+     */
+    public function getFps()
+    {
+        if (isset($this->videoStream['avg_frame_rate'])) {
+            $parts = explode('/', $this->videoStream['avg_frame_rate']);
+            if (count($parts) === 2) {
+                list($a, $b) = $parts;
+                return round((integer)$a / (integer)$b, 0);
+            }
+        }
+        return 0;
+    }
 
 }

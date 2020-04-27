@@ -27,19 +27,27 @@ class FfmpegTest extends Test
         $component->convert('@ext/files/v600.mp4', '@ext/_output/1.nf', 'nfound');
     }
 
+    /**
+     * @return array
+     */
     public function convertFiles()
     {
-
-
         return [
-            /*'mp4-web_l' => ['source' => '@ext/files/v600.mp4', 'format' => 'webm',
+            'avi-mp4 big' => ['source' => '@ext/files/big.avi', 'format' => 'mp4', ['-preset'=>'ultrafast', '-crf' => '30']],
+            'mp4-web_l' => ['source' => '@ext/files/timer2.mp4', 'format' => 'webm',
                 'arguments' => [
-                    '-threads ' => 4,
-                    '-t' => 35,
-                    '-ss' => 66
+                    '-vcodec' => 'libvpx-vp9',
+                    '-cpu-used' => '-5',
+                    '-deadline' => 'realtime',
+                    '-b:v' => '2M',
+                    '-crf' => 35,
+                    '-vf' => [
+                        'scale' => '310:210',
+                        'setsar' => 1
+                    ]
                 ]
-            ],*/
-           //  'mp4-avi' => ['source' => '@ext/files/t.mp4', 'format' => 'avi'],
+            ],
+             'mp4-avi' => ['source' => '@ext/files/t.mp4', 'format' => 'avi'],
 
              'webm.h264-mp4.h64-copy' => [
                  'source' => '@ext/files/webm_h264.webm',
@@ -58,7 +66,6 @@ class FfmpegTest extends Test
              ],
              'avi-flv' => ['source' => '@ext/files/t.avi', 'format' => 'flv'],
              'flv-avi' => ['source' => '@ext/files/t.flv', 'format' => 'avi'],
-             //'avi-mp4 big' => ['source' => '@ext/files/big.avi', 'format' => 'mp4'],
              'avi-mp4' => ['source' => '@ext/files/t.avi', 'format' => 'mp4'],
         ];
     }
@@ -105,13 +112,9 @@ class FfmpegTest extends Test
          * @var VideoInfoParser $s
          * @var VideoInfoParser $d
          */
-        /*list($convertEnd, $s, $d) = $component->convert(
-            $source, '@ext/_output/test.' . $format, $format, $arguments
-        );*/
-
 
         $end = $component->convert(
-            $source, '@ext/_output/test.' . $format, $format, $arguments
+            $source, '@ext/_output/'. trim(basename($source)).'_test_.' . $format, $format, $arguments
         );
 
 
@@ -126,6 +129,9 @@ class FfmpegTest extends Test
 
     }
 
+    /**
+     * @throws \Exception
+     */
     public function testVideoInfo()
     {
 
