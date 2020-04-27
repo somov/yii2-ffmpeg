@@ -18,6 +18,7 @@ use somov\ffmpeg\process\parser\VideoInfoParser;
 use somov\ffmpeg\process\VideoProcess;
 use yii\base\Component;
 use yii\base\InvalidCallException;
+use yii\base\InvalidConfigException;
 use yii\helpers\ArrayHelper;
 
 /**
@@ -76,8 +77,12 @@ class Ffmpeg extends Component
         return [
             'convert' => VideoProcess::class,
             'concat' => VideoProcess::class,
-            'createImage' => ImageProcess::class,
-            'createImagesForPeriod' => ImageProcess::class,
+            'createImage' => [
+                'class' => ImageProcess::class
+            ],
+            'createImagesForPeriod' => [
+                'class' => ImageProcess::class
+            ],
         ];
     }
 
@@ -102,7 +107,7 @@ class Ffmpeg extends Component
         $result = ProcessRunner::exec($process);
 
         if (!$result->success) {
-            $exception  = new FfmpegException($process, $result->getEndMessage());
+            $exception = new FfmpegException($process, $result->getEndMessage());
             $exception->ffmpeg = $this;
             throw $exception;
         }
@@ -115,18 +120,17 @@ class Ffmpeg extends Component
             $destinationInfo = $this->getVideoInfo($destination);
         }
 
-        $event = new EndEvent([
+        $event = $result->createEvent([
             'result' => $result,
             'source' => $sourceInfo,
             'destination' => $destinationInfo
-        ]);
-
-        if ($process->hasMethod('configureEndEvent')) {
-            $process->configureEndEvent($event);
-        }
+        ], $process);
 
         $this->trigger(self::EVENT_END, $event);
 
+        if (empty($event->sender)) {
+            $event->sender = $this;
+        }
         unset($this->_runningSourceInfo[$process->getActionId()]);
 
         return $event;
@@ -141,7 +145,13 @@ class Ffmpeg extends Component
      */
     protected function callProgressAction($name, $params)
     {
-        if ($class = ArrayHelper::getValue($this->processes(), $name)) {
+        if ($type = ArrayHelper::getValue($this->processes(), $name)) {
+
+            $class = is_string($type) ? $type : ArrayHelper::getValue($type, 'class');
+
+            if (empty($class)) {
+                throw new InvalidConfigException('Unknown process type');
+            }
 
             $reflection = new \ReflectionMethod($class, 'action' . ucfirst($name));
             $reflection->setAccessible(true);
@@ -170,8 +180,7 @@ class Ffmpeg extends Component
                 $info = $this->getVideoInfo($params['files'][0]);
             }
 
-            return $this->exec($this->createProcess([
-                'class' => $class,
+            return $this->exec($this->createProcess($type, [
                 'progressInfo' => $info,
                 'action' => [$name => $params],
                 'bufferSize' => 512
@@ -214,8 +223,7 @@ class Ffmpeg extends Component
 
         if (!$info->getDuration() && $this->decodeStreamDuration) {
             /** @var ConvertEndParser $result */
-            $result = ProcessRunner::exec($this->createProcess([
-                'class' => VideoProcess::class,
+            $result = ProcessRunner::exec($this->createProcess(VideoProcess::class,[
                 'progressInfo' => $info,
                 'action' => [
                     'decodeStreamDuration' => [
@@ -273,21 +281,30 @@ class Ffmpeg extends Component
     }
 
     /**
+     * @param string|array $type
      * @param array $options
      * @return object|FfmpegBaseProcess
+     * @throws InvalidConfigException
      */
-    protected function createProcess(array $options = [])
+    protected function createProcess($type, array $options = [])
     {
 
         $default = [
             'commandPath' => $this->ffmpegPath,
         ];
 
+        if (is_array($type)) {
+            $default = array_merge($default, $type);
+        } else {
+            $default['class'] = $type;
+        }
+
         if ($info = ArrayHelper::remove($options, 'progressInfo')) {
             $default['bufferReaderCallback'] = function ($buffer, $process) use ($info) {
                 return $this->processingProgress($buffer, $process, $info);
             };
         }
+
         return \Yii::createObject(ArrayHelper::merge($default, $options), [$this]);
     }
 

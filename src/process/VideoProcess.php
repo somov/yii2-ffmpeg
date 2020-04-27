@@ -87,7 +87,6 @@ class VideoProcess extends FfmpegBaseProcess
      * @param string $format
      * @param null $addArguments addition command arguments
      * @return string
-     * @internal param string $codec
      */
     protected function actionConvert($source, $destination, $format, $addArguments = null)
     {
@@ -121,7 +120,7 @@ class VideoProcess extends FfmpegBaseProcess
      */
     protected function actionDecodeStreamDuration($source)
     {
-        return $this->actionConvert($source, '-', 'null', ['-tune' => 'fastdecod']);
+        return $this->actionConvert($source, '-', 'null', ['-tune' => 'fastdecode']);
     }
 
 }

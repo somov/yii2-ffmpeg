@@ -11,6 +11,7 @@ namespace somov\ffmpeg\process;
 use somov\ffmpeg\components\ImageFile;
 use somov\ffmpeg\events\EndEvent;
 use somov\ffmpeg\events\ImageEndEvent;
+use somov\ffmpeg\process\parser\ConvertEndImageParser;
 use yii\helpers\FileHelper;
 
 /**
@@ -20,10 +21,12 @@ use yii\helpers\FileHelper;
 class ImageProcess extends FfmpegBaseProcess
 {
 
+    public $outputParser = ConvertEndImageParser::class;
+
     /**
      * @var array
      */
-    protected $images;
+    protected $images = [];
 
     /**
      * @var
@@ -37,11 +40,18 @@ class ImageProcess extends FfmpegBaseProcess
      * @param string $size
      * @param float $time
      */
-    protected function addImage($index, $file, $size, $time)
+    public function addImage($index, $file, $size, $time)
     {
         $this->images[] = new ImageFile($this, compact('index', 'file', 'size', 'time'));
     }
 
+    /**
+     * @return array
+     */
+    public function &getImages()
+    {
+        return $this->images;
+    }
 
     /**
      * Обновление события окончания процесса на ImageEndEvent и сбор сцентрированных картинок
@@ -163,5 +173,16 @@ class ImageProcess extends FfmpegBaseProcess
     {
         return gmdate("H:i:s.U", $seconds);
     }
+
+    /**
+     * @return array
+     */
+    public function getParams()
+    {
+        return $this->params;
+    }
+
+
+
 
 }

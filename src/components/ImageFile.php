@@ -12,6 +12,10 @@ namespace somov\ffmpeg\components;
 use somov\ffmpeg\process\ImageProcess;
 use yii\base\BaseObject;
 
+/**
+ * Class ImageFile
+ * @package somov\ffmpeg\components
+ */
 class ImageFile extends BaseObject
 {
     /**
@@ -51,5 +55,12 @@ class ImageFile extends BaseObject
         parent::__construct($config);
     }
 
+    /**
+     * @return ImageProcess
+     */
+    public function getProcess()
+    {
+        return $this->_process;
+    }
 
 }

@@ -10,6 +10,8 @@ namespace somov\ffmpeg\process\parser;
 
 
 use somov\common\interfaces\ParserInterface;
+use somov\ffmpeg\events\EndEvent;
+use somov\ffmpeg\process\FfmpegBaseProcess;
 use yii\base\BaseObject;
 
 /**
@@ -21,10 +23,25 @@ use yii\base\BaseObject;
 class ConvertEndParser extends BaseObject implements ParserInterface
 {
 
+    /**
+     * @var string
+     */
     protected $progress = '';
 
+    /**
+     * @var string
+     */
     private $_data;
 
+    /**
+     * @param $options
+     * @param FfmpegBaseProcess $process
+     * @return EndEvent
+     */
+    public function createEvent($options, FfmpegBaseProcess $process)
+    {
+        return new EndEvent($options);
+    }
 
     /**
      * @param mixed $data

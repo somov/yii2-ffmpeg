@@ -33,6 +33,13 @@ class FfmpegTest extends Test
     public function convertFiles()
     {
         return [
+            'webm.h264-mp4.h64-copy' => [
+                'source' => '@ext/files/webm_h264.webm',
+                'format' => 'mp4',
+                'arguments' => [
+                    '-c:v' => 'copy'
+                ]
+            ],
             'avi-mp4 big' => ['source' => '@ext/files/big.avi', 'format' => 'mp4', ['-preset'=>'ultrafast', '-crf' => '30']],
             'mp4-web_l' => ['source' => '@ext/files/timer2.mp4', 'format' => 'webm',
                 'arguments' => [
@@ -48,14 +55,6 @@ class FfmpegTest extends Test
                 ]
             ],
              'mp4-avi' => ['source' => '@ext/files/t.mp4', 'format' => 'avi'],
-
-             'webm.h264-mp4.h64-copy' => [
-                 'source' => '@ext/files/webm_h264.webm',
-                 'format' => 'mp4',
-                 'arguments' => [
-                     '-c:v' => 'copy'
-                 ]
-             ],
              'mp4-webm-error' => [
                  'source' => '@ext/files/t.mp4',
                  'format' => 'webm',
@@ -132,7 +131,7 @@ class FfmpegTest extends Test
     /**
      * @throws \Exception
      */
-    public function testVideoInfo()
+    public function OffTestVideoInfo()
     {
 
         /** @var VideoInfoParser $info */
