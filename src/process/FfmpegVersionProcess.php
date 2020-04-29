@@ -62,9 +62,10 @@ class FfmpegVersionProcess extends BaseProcess implements ParserInterface
 
     /**
      * @param array|object $data
+     * @param BaseProcess $process
      * @return $this
      */
-    public function parse($data)
+    public function parse($data, BaseProcess $process)
     {
         return $this;
     }

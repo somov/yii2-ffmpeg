@@ -12,7 +12,10 @@ use yii\base\BaseObject;
 use yii\helpers\ArrayHelper;
 use yii\helpers\StringHelper;
 
-
+/**
+ * Class ConfigParser
+ * @package somov\ffmpeg\process\parser
+ */
 abstract class ConfigParser extends BaseObject
 {
     /**

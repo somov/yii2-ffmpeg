@@ -9,7 +9,7 @@
 namespace somov\ffmpeg\components;
 
 
-use somov\ffmpeg\process\ImageProcess;
+use somov\ffmpeg\process\parser\ConvertEndImageParser;
 use yii\base\BaseObject;
 
 /**
@@ -39,28 +39,29 @@ class ImageFile extends BaseObject
     public $time;
 
     /**
-     * @var  ImageProcess
+     * @var  ConvertEndImageParser
      */
-    private $_process;
+    private $_parser;
 
 
     /**
      * ImageFile constructor.
-     * @param ImageProcess $process
+     * @param ConvertEndImageParser $parser
      * @param array $config
      */
-    public function __construct(ImageProcess $process, array $config = [])
+    public function __construct(ConvertEndImageParser $parser, array $config = [])
     {
-        $this->_process = $process;
+        $this->_parser = $parser;
+
         parent::__construct($config);
     }
 
     /**
-     * @return ImageProcess
+     * @return ConvertEndImageParser
      */
-    public function getProcess()
+    public function getParser()
     {
-        return $this->_process;
+        return $this->_parser;
     }
 
 }

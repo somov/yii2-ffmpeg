@@ -13,11 +13,17 @@ use somov\common\process\StringBuffered;
 use somov\ffmpeg\process\parser\VideoInfoParser;
 use yii\base\InvalidConfigException;
 
+/**
+ * Class FfprobeProcess
+ * @package somov\ffmpeg\process
+ */
 class FfprobeProcess extends BaseProcess
 {
     use StringBuffered;
 
-
+    /**
+     * @var string|array|callable string
+     */
     public $outputParser = VideoInfoParser::class;
 
     /**
@@ -25,6 +31,9 @@ class FfprobeProcess extends BaseProcess
      */
     public $source = null;
 
+    /**
+     * @throws InvalidConfigException
+     */
     protected function initSource()
     {
         if (empty($this->source)) {
@@ -38,6 +47,10 @@ class FfprobeProcess extends BaseProcess
         }
     }
 
+    /**
+     * @return string
+     * @throws InvalidConfigException
+     */
     protected function prepareCommand()
     {
         $this->initSource();

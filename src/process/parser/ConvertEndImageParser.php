@@ -8,8 +8,10 @@
 
 namespace somov\ffmpeg\process\parser;
 
+use somov\common\helpers\ArrayHelper;
+use somov\common\process\BaseProcess;
+use somov\ffmpeg\components\ImageFile;
 use somov\ffmpeg\events\ImageEndEvent;
-use somov\ffmpeg\process\FfmpegBaseProcess;
 use somov\ffmpeg\process\ImageProcess;
 use yii\helpers\FileHelper;
 
@@ -20,15 +22,45 @@ use yii\helpers\FileHelper;
 class ConvertEndImageParser extends ConvertEndParser
 {
     /**
-     * @param $options
-     * @param FfmpegBaseProcess|ImageProcess $process
-     * @return \somov\ffmpeg\events\ImageEndEvent
+     * @var ImageFile[]
      */
-    public function createEvent($options, FfmpegBaseProcess $process)
-    {
+    protected $images = [];
 
-        $event = new ImageEndEvent($options);
-        $event->images = &$process->getImages();
+    /**
+     * @var string
+     */
+    public $event = ImageEndEvent::class;
+
+    /**
+     * @param integer $index
+     * @param string $file
+     * @param string $size
+     * @param float $time
+     */
+    protected function addImage($index, $file, $size, $time)
+    {
+        $this->images[] = \Yii::createObject(array_merge(
+            ['class'=>ImageFile::class],
+            compact('index', 'file', 'size', 'time')),[$this]
+        );
+    }
+
+    /**
+     * @param mixed $data
+     * @param BaseProcess|ImageProcess $process
+     * @return ConvertEndParser
+     */
+    public function parse($data, BaseProcess $process)
+    {
+        parent::parse($data, $process);
+        $this->findImages($process);
+        return $this;
+    }
+
+    /**
+     * @param ImageProcess $process
+     */
+    protected function findImages(ImageProcess $process){
 
         $dir = $process->getWorkingDir();
         $params = $process->getParams();
@@ -40,11 +72,19 @@ class ConvertEndImageParser extends ConvertEndParser
                 '*.' . $params['extension']
             ]]) as $file) {
                 $index++;
-                $process->addImage($index, $file, $params['size'], $time);
-                $time += $params['period'];
+                $this->addImage($index, $file, $params['size'], $time);
+                $time += ArrayHelper::getValue($params, 'period', 0);
             }
         }
-
-        return $event;
     }
+
+    /**
+     * @return ImageFile[]
+     */
+    public function getImages()
+    {
+        return $this->images;
+    }
+
+
 }

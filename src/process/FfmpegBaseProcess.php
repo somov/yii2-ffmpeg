@@ -13,7 +13,6 @@ use somov\common\interfaces\ParserInterface;
 use somov\common\process\BaseProcess;
 use somov\common\process\StringBuffered;
 use somov\ffmpeg\components\Ffmpeg;
-use somov\ffmpeg\events\EndEvent;
 use somov\ffmpeg\process\parser\ConvertEndParser;
 use yii\helpers\Json;
 use yii\helpers\StringHelper;
@@ -24,7 +23,7 @@ use yii\helpers\StringHelper;
  *
  * @property-read Ffmpeg $ffmpeg
  *
- * @method EndEvent configureEndEvent(EndEvent $event)
+
  */
 abstract class FfmpegBaseProcess extends BaseProcess
 {
@@ -112,10 +111,9 @@ abstract class FfmpegBaseProcess extends BaseProcess
             ->addArgument('-loglevel', 'error')
             ->addArgument('-nostdin');
 
+        $this->addArgument('-y');
 
         call_user_func($configCall);
-
-        $this->addArgument('-y');
 
         if (isset($addArguments)) {
             $this->addArgument($addArguments);
@@ -128,8 +126,11 @@ abstract class FfmpegBaseProcess extends BaseProcess
 
         //all in stdout
         $this->addArgument('2>&1');
+        $command = $this->prepareCommand();
 
-        return $this->prepareCommand();
+        \Yii::debug($command, self::class);
+
+        return $command;
 
     }
 

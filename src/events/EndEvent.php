@@ -7,6 +7,7 @@
 
 namespace somov\ffmpeg\events;
 
+use somov\ffmpeg\process\FfmpegBaseProcess;
 use somov\ffmpeg\process\parser\ConvertEndParser;
 use somov\ffmpeg\process\parser\VideoInfoParser;
 use yii\base\ArrayAccessTrait;
@@ -20,6 +21,7 @@ class EndEvent extends Event implements \ArrayAccess
 {
     use ArrayAccessTrait;
 
+
     /** @var  ConvertEndParser */
     public $result;
 
@@ -32,6 +34,16 @@ class EndEvent extends Event implements \ArrayAccess
      * @var VideoInfoParser
      */
     public $destination;
+
+    /**
+     * @var ConvertEndParser
+     */
+    public $parser;
+
+    /**
+     * @var FfmpegBaseProcess
+     */
+    public $process;
 
 
 }

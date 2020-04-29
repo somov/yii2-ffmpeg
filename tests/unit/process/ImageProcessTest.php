@@ -33,6 +33,8 @@ class ImageProcessTest extends \Codeception\Test\Unit
         $result = \somov\common\components\ProcessRunner::exec($process);
         $this->assertTrue($result->getSuccess());
 
+
+
     }
 
 }

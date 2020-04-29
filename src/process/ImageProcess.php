@@ -8,11 +8,7 @@
 
 namespace somov\ffmpeg\process;
 
-use somov\ffmpeg\components\ImageFile;
-use somov\ffmpeg\events\EndEvent;
-use somov\ffmpeg\events\ImageEndEvent;
 use somov\ffmpeg\process\parser\ConvertEndImageParser;
-use yii\helpers\FileHelper;
 
 /**
  * Class ImageProcess
@@ -21,64 +17,18 @@ use yii\helpers\FileHelper;
 class ImageProcess extends FfmpegBaseProcess
 {
 
+    /**
+     * @var string
+     */
     public $outputParser = ConvertEndImageParser::class;
 
-    /**
+    /** Параметры генерации изображений
+     *  используется ConvertEndImageParser
      * @var array
-     */
-    protected $images = [];
-
-    /**
-     * @var
      */
     protected $params;
 
 
-    /**
-     * @param integer $index
-     * @param string $file
-     * @param string $size
-     * @param float $time
-     */
-    public function addImage($index, $file, $size, $time)
-    {
-        $this->images[] = new ImageFile($this, compact('index', 'file', 'size', 'time'));
-    }
-
-    /**
-     * @return array
-     */
-    public function &getImages()
-    {
-        return $this->images;
-    }
-
-    /**
-     * Обновление события окончания процесса на ImageEndEvent и сбор сцентрированных картинок
-     * @param EndEvent $event
-     */
-    public function configureEndEvent(EndEvent &$event)
-    {
-        $event = new ImageEndEvent([
-            'source' => $event->source,
-        ]);
-
-        $event->images = &$this->images;
-        $dir = $this->getWorkingDir();
-
-        if (isset($dir)) {
-            $index = 0;
-            $time = (integer)$this->params['start'];
-            foreach (FileHelper::findFiles($dir, ['only' => [
-                '*.' . $this->params['extension']
-            ]]) as $file) {
-                $index++;
-                $this->addImage($index, $file, $this->params['size'], $time);
-                $time += $this->params['period'];
-            }
-        }
-
-    }
 
     /**
      * @param string $source
@@ -86,17 +36,24 @@ class ImageProcess extends FfmpegBaseProcess
      * @param integer $width
      * @param integer $height
      * @param string $format
+     * @param string $extension
      * @return string
+     * @throws \yii\base\ErrorException
+     * @throws \yii\base\Exception
      */
-    protected function actionCreateImage($source, $start = 0, $width = null, $height = null, $format = 'image2')
+    protected function actionCreateImage($source, $start = 0, $width = null, $height = null, $format = 'image2', $extension = 'jpg')
     {
-        $destination = $this->newTemporaryFile();
+        $destination = $this->newTemporaryFile(). '.'.$extension;
 
         $source = \Yii::getAlias($source);
 
         $size = $this->normalizeSize($width, $height);
 
-        $this->addImage(0, $destination, $size, $start);
+        $params['extension'] = $extension;
+        $params['start'] = $start;
+        $params['size'] = $size;
+
+        $this->params = $params;
 
         return $this->normalizeArguments(function () use ($source, $start, $size, $format) {
             $this->addArgument('-ss', $this->secondsToTime($start))

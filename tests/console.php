@@ -35,6 +35,15 @@ return [
                     'levels' => ['error', 'trace', 'warning', 'info'],
                     'logVars' => [],
                 ],
+
+                [
+                    'class' => 'yii\log\FileTarget',
+                    'logFile' => '@runtime/logs/trace.log',
+                    'categories' => ['somov*'],
+                    'levels' => ['trace'],
+                    'logVars' => [],
+                ],
+
             ],
         ],
     ],

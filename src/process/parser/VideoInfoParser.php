@@ -10,6 +10,7 @@ namespace somov\ffmpeg\process\parser;
 
 use Imagine\Image\Box;
 use somov\common\interfaces\ParserInterface;
+use somov\common\process\BaseProcess;
 use yii\base\BaseObject;
 use yii\helpers\ArrayHelper;
 use yii\helpers\Json;
@@ -34,9 +35,10 @@ class VideoInfoParser extends BaseObject implements ParserInterface
 
     /**
      * @param mixed $data
+     * @param BaseProcess $process
      * @return $this
      */
-    public function parse($data)
+    public function parse($data, BaseProcess $process)
     {
         $a = Json::decode($data);
 
@@ -195,11 +197,13 @@ class VideoInfoParser extends BaseObject implements ParserInterface
      */
     public function getFps()
     {
-        if (isset($this->videoStream['avg_frame_rate'])) {
-            $parts = explode('/', $this->videoStream['avg_frame_rate']);
-            if (count($parts) === 2) {
-                list($a, $b) = $parts;
-                return round((integer)$a / (integer)$b, 0);
+        foreach (['avg_frame_rate', 'r_frame_rate'] as $item) {
+            if (isset($this->videoStream[$item])) {
+                $parts = array_filter(explode('/', $this->videoStream[$item]));
+                if (count($parts) === 2) {
+                    list($a, $b) = $parts;
+                    return round((integer)$a / (integer)$b, 0);
+                }
             }
         }
         return 0;

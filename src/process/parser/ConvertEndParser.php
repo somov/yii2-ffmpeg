@@ -9,7 +9,9 @@
 namespace somov\ffmpeg\process\parser;
 
 
+use somov\common\helpers\ArrayHelper;
 use somov\common\interfaces\ParserInterface;
+use somov\common\process\BaseProcess;
 use somov\ffmpeg\events\EndEvent;
 use somov\ffmpeg\process\FfmpegBaseProcess;
 use yii\base\BaseObject;
@@ -34,20 +36,46 @@ class ConvertEndParser extends BaseObject implements ParserInterface
     private $_data;
 
     /**
-     * @param $options
-     * @param FfmpegBaseProcess $process
-     * @return EndEvent
+     * @var string|array|callable
      */
-    public function createEvent($options, FfmpegBaseProcess $process)
+    public $event = EndEvent::class;
+
+
+    /**
+     * @param VideoInfoParser $source
+     * @param FfmpegBaseProcess $process
+     * @return EndEvent|object
+     */
+    public function createEvent($source, FfmpegBaseProcess $process)
     {
-        return new EndEvent($options);
+
+        $options = [
+            'result' => $this,
+            'source' => $source,
+            'parser' => $this,
+            'process' => $process
+        ];
+
+        if (is_string($this->event)) {
+            $options['class'] = $this->event;
+        } else {
+            $options = ArrayHelper::merge($this->event, $options);
+        }
+
+        if ($destination = ArrayHelper::getValue($process->getActionParams(), 'destination')) {
+            $options['destination'] = $process->ffmpeg->getVideoInfo($destination);
+        }
+
+        return \Yii::createObject($options);
+
     }
 
     /**
      * @param mixed $data
+     * @param BaseProcess $process
      * @return $this
      */
-    public function parse($data)
+    public function parse($data, BaseProcess $process)
     {
         $this->_data = $data;
         return $this;

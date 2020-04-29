@@ -6,6 +6,7 @@ namespace somov\ffmpeg\components;
 use somov\common\components\ProcessRunner;
 use somov\common\traits\ContainerCompositions;
 use somov\ffmpeg\events\EndEvent;
+use somov\ffmpeg\events\EndEventMultiple;
 use somov\ffmpeg\events\ImageEndEvent;
 use somov\ffmpeg\events\ProgressEvent;
 use somov\ffmpeg\events\VideoInfoEvent;
@@ -13,11 +14,11 @@ use somov\ffmpeg\process\FfmpegBaseProcess;
 use somov\ffmpeg\process\FfmpegVersionProcess;
 use somov\ffmpeg\process\FfprobeProcess;
 use somov\ffmpeg\process\ImageProcess;
+use somov\ffmpeg\process\MultipleProcess;
 use somov\ffmpeg\process\parser\ConvertEndParser;
 use somov\ffmpeg\process\parser\VideoInfoParser;
 use somov\ffmpeg\process\VideoProcess;
 use yii\base\Component;
-use yii\base\InvalidCallException;
 use yii\base\InvalidConfigException;
 use yii\helpers\ArrayHelper;
 
@@ -28,8 +29,9 @@ use yii\helpers\ArrayHelper;
  *
  * @method EndEvent convert ($source, $destination, string|null $format, array $addArguments = [])
  * @method EndEvent concat (array $files, string $format, string $destination, array $convertArguments = [], array $concatArguments = [])
- * @method ImageEndEvent createImage(string $source, float $start = 0, $width = null, $height = null, $format = 'image2')
+ * @method ImageEndEvent createImage(string $source, float $start = 0, $width = null, $height = null, $format = 'image2', $extension = 'jpg')
  * @method ImageEndEvent createImagesForPeriod(string $source, integer $count, integer $width = null, integer $height = null, float $start = null, float $end = null, string $format = 'image2', string $extension = 'jpg')
+ * @method EndEventMultiple convertMultiple(array|string $sources, array|string $destinations, $arguments = [])
  */
 class Ffmpeg extends Component
 {
@@ -77,12 +79,9 @@ class Ffmpeg extends Component
         return [
             'convert' => VideoProcess::class,
             'concat' => VideoProcess::class,
-            'createImage' => [
-                'class' => ImageProcess::class
-            ],
-            'createImagesForPeriod' => [
-                'class' => ImageProcess::class
-            ],
+            'createImage' => ImageProcess::class,
+            'createImagesForPeriod' => ImageProcess::class,
+            'convertMultiple' => MultipleProcess::class
         ];
     }
 
@@ -114,17 +113,7 @@ class Ffmpeg extends Component
 
         $this->processingProgress($result->getBuffer(), $process, $sourceInfo);
 
-        $destinationInfo = null;
-
-        if ($destination = ArrayHelper::getValue($process->getActionParams(), 'destination')) {
-            $destinationInfo = $this->getVideoInfo($destination);
-        }
-
-        $event = $result->createEvent([
-            'result' => $result,
-            'source' => $sourceInfo,
-            'destination' => $destinationInfo
-        ], $process);
+        $event = $result->createEvent($sourceInfo, $process);
 
         $this->trigger(self::EVENT_END, $event);
 
@@ -168,17 +157,7 @@ class Ffmpeg extends Component
 
             $params = ArrayHelper::map($reflectionParams, 'name', 'value');
 
-            $info = null;
-
-            if ($source = ArrayHelper::getValue($params, 'source')) {
-                $info = $this->getVideoInfo($params['source']);
-            } else {
-                if (empty($params['files'])) {
-                    throw  new InvalidCallException('Missing video source');
-                }
-
-                $info = $this->getVideoInfo($params['files'][0]);
-            }
+            $info = $this->resolveProgressInfoFromActonParams($params);
 
             return $this->exec($this->createProcess($type, [
                 'progressInfo' => $info,
@@ -188,6 +167,35 @@ class Ffmpeg extends Component
         }
 
         return false;
+    }
+
+    /**
+     * @param $params
+     * @return VideoInfoParser|null
+     * @throws \Exception
+     */
+    private function resolveProgressInfoFromActonParams(array $params) {
+
+        $info = null;
+
+        if ($source = ArrayHelper::getValue($params, 'source')) {
+            if (is_array($source)) {
+                if ($s = ArrayHelper::getValue($source, 'source')) {
+                    $info = $this->getVideoInfo($s);
+                } else {
+                    $source = ArrayHelper::isAssociative($source) ? key($source) : reset($source);
+                    $info = $info = $this->getVideoInfo($source);
+                }
+            } else {
+                $info = $this->getVideoInfo($source);
+            }
+        } else {
+            if (!empty($params['files'])) {
+                $f = reset($params['files']);
+                $info = $this->getVideoInfo($f);
+            }
+        }
+        return $info;
     }
 
     /**
@@ -204,12 +212,23 @@ class Ffmpeg extends Component
     }
 
     /**
+     * @var array VideoInfoParser[]
+     */
+    private static $_infoCache = [];
+
+    /**
      * @param $file
      * @return mixed|VideoInfoParser
      * @throws \Exception
      */
     public function getVideoInfo($file)
     {
+        $file = realpath(\Yii::getAlias($file));
+
+        if (isset(self::$_infoCache[$file])) {
+            return self::$_infoCache[$file];
+        }
+
         /** @var VideoInfoParser $info */
         $info = ProcessRunner::exec([
             'class' => FfprobeProcess::class,
@@ -223,7 +242,7 @@ class Ffmpeg extends Component
 
         if (!$info->getDuration() && $this->decodeStreamDuration) {
             /** @var ConvertEndParser $result */
-            $result = ProcessRunner::exec($this->createProcess(VideoProcess::class,[
+            $result = ProcessRunner::exec($this->createProcess(VideoProcess::class, [
                 'progressInfo' => $info,
                 'action' => [
                     'decodeStreamDuration' => [
@@ -238,6 +257,8 @@ class Ffmpeg extends Component
 
             $info->setDuration($result->getEndDuration());
         };
+
+        self::$_infoCache[$file] = $info;
 
         return $info;
     }
