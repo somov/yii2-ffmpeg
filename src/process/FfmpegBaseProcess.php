@@ -65,6 +65,11 @@ abstract class FfmpegBaseProcess extends BaseProcess
     private $_workingDir;
 
     /**
+     * @var integer
+     */
+    private $_eTime;
+
+    /**
      * FfmpegBaseProcess constructor.
      * @param $ffmpeg
      * @param array $config
@@ -129,7 +134,7 @@ abstract class FfmpegBaseProcess extends BaseProcess
         $command = $this->prepareCommand();
 
         \Yii::debug($command, self::class);
-
+        $this->_eTime = time();
         return $command;
 
     }
@@ -186,7 +191,13 @@ abstract class FfmpegBaseProcess extends BaseProcess
         return $this->_workingDir;
     }
 
-
+    /**
+     * @return int
+     */
+    public function getExecutingStartTime()
+    {
+        return $this->_eTime;
+    }
 
 
 }

@@ -28,7 +28,7 @@ use yii\helpers\ArrayHelper;
  *
  *
  * @method EndEvent convert ($source, $destination, string|null $format, array $addArguments = [])
- * @method EndEvent concat (array $files, string $format, string $destination, array $convertArguments = [], array $concatArguments = [])
+ * @method EndEvent concat (array $files, string $format, string $destination, array $concatArguments = [], array $convertArguments = [])
  * @method ImageEndEvent createImage(string $source, float $start = 0, $width = null, $height = null, $format = 'image2', $extension = 'jpg')
  * @method ImageEndEvent createImagesForPeriod(string $source, integer $count, integer $width = null, integer $height = null, float $start = null, float $end = null, string $format = 'image2', string $extension = 'jpg')
  * @method EndEventMultiple convertMultiple(array|string $sources, array|string $destinations, $arguments = [])
@@ -174,7 +174,8 @@ class Ffmpeg extends Component
      * @return VideoInfoParser|null
      * @throws \Exception
      */
-    private function resolveProgressInfoFromActonParams(array $params) {
+    private function resolveProgressInfoFromActonParams(array $params)
+    {
 
         $info = null;
 
@@ -184,7 +185,7 @@ class Ffmpeg extends Component
                     $info = $this->getVideoInfo($s);
                 } else {
                     $source = ArrayHelper::isAssociative($source) ? key($source) : reset($source);
-                    $info = $info = $this->getVideoInfo($source);
+                    $info = $this->getVideoInfo($source);
                 }
             } else {
                 $info = $this->getVideoInfo($source);
@@ -223,7 +224,7 @@ class Ffmpeg extends Component
      */
     public function getVideoInfo($file)
     {
-        $file = realpath(\Yii::getAlias($file));
+        $file = \Yii::getAlias($file);
 
         if (isset(self::$_infoCache[$file])) {
             return self::$_infoCache[$file];
@@ -275,6 +276,7 @@ class Ffmpeg extends Component
         $pattern = "#bitrate=\s*(?'bitrate'(N\/A|\d*(?:\.\d+)?)).*total_size=\s*(?'size'(N\/A|\d+)).*out_time_ms=\s*(?'time_ms'\d+).*speed=\s*(?'speed'\d*(?:\.\d+)?).*progress=\s*(?'state'\w+)#s";
 
         if (preg_match_all($pattern, $buffer, $m, PREG_SET_ORDER)) {
+
             $event = (new ProgressEvent(reset($m), [
                 'info' => $info,
                 'process' => $process
@@ -286,7 +288,7 @@ class Ffmpeg extends Component
 
         }
 
-        return true;
+        return false;
     }
 
     /**
@@ -321,9 +323,11 @@ class Ffmpeg extends Component
         }
 
         if ($info = ArrayHelper::remove($options, 'progressInfo')) {
-            $default['bufferReaderCallback'] = function ($buffer, $process) use ($info) {
-                return $this->processingProgress($buffer, $process, $info);
-            };
+            if ($this->hasEventHandlers(self::EVENT_PROGRESS)) {
+                $default['bufferReaderCallback'] = function ($buffer, $process) use ($info) {
+                    return $this->processingProgress($buffer, $process, $info);
+                };
+            }
         }
 
         return \Yii::createObject(ArrayHelper::merge($default, $options), [$this]);

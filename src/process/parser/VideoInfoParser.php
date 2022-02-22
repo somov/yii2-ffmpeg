@@ -202,7 +202,7 @@ class VideoInfoParser extends BaseObject implements ParserInterface
                 $parts = array_filter(explode('/', $this->videoStream[$item]));
                 if (count($parts) === 2) {
                     list($a, $b) = $parts;
-                    return round((integer)$a / (integer)$b, 0);
+                    return (integer) round($a / (integer)$b, 0);
                 }
             }
         }

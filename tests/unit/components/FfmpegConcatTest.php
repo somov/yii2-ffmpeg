@@ -21,7 +21,7 @@ class FfmpegConcatTest extends Test
 
         $progress = 0;
 
-        $duration  = 0;
+        $duration = 0;
 
         $component = new Ffmpeg([
             'decodeStreamDuration' => false,
@@ -44,10 +44,9 @@ class FfmpegConcatTest extends Test
         ]);
 
         $end = $component->concat([
-            '@ext/files/concat/0.webm',
-            '@ext/files/concat/1.webm',
-            '@ext/files/concat/2.webm',
-        ], 'mp4', '@ext/_output/test_concat.mp4', ['-c:v' => 'copy'], ['-c:v' => 'copy', '-movflags' => 'faststart']);
+            '@ext/files/timer.mp4',
+            '@ext/files/timer2.mp4',
+        ], 'null', '@ext/_output/test_concat.mp4', ['-c:v' => 'copy', '-c:a' => 'copy']);
 
 
         $this->assertGreaterThanOrEqual(95, $progress);

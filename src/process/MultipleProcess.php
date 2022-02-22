@@ -63,7 +63,6 @@ class MultipleProcess extends FfmpegBaseProcess
     /**
      * @param array $arguments
      * @param string $direction
-     * @param string $separator
      */
     protected function processArgumentsDirection(array $arguments, $direction)
     {

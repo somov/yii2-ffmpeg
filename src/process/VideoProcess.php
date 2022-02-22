@@ -29,7 +29,7 @@ class VideoProcess extends FfmpegBaseProcess
      * @param array $concatArguments
      * @return string
      */
-    protected function actionConcat(array $files, $format, $destination, $convertArguments = [], $concatArguments = [])
+    protected function actionConcat(array $files, $format, $destination, $concatArguments = [], $convertArguments = [])
     {
 
         if (count($files) < 1) {
@@ -47,16 +47,18 @@ class VideoProcess extends FfmpegBaseProcess
             $list[] = $this->ffmpeg->getVideoInfo($file);
         }
 
-        foreach ($list as $index => $info) {
-            if ($info->getFormatName('true') <> $format) {
-                $fileName = $info->getFileName();
-                $dst = $fileName . '_.' . $format;
+        if (count($convertArguments) > 0) {
+            foreach ($list as $index => $info) {
+                if ($info->getFormatName('true') <> $format) {
+                    $fileName = $info->getFileName();
+                    $dst = $fileName . '_.' . $format;
 
-                $end = $this->ffmpeg->convert($fileName, $dst, $format, $convertArguments);
-                if (!$end->result->success) {
-                    throw new \RuntimeException("Error convert $fileName to format $format " . $end->result->getEndMessage());
+                    $end = $this->ffmpeg->convert($fileName, $dst, $format, $convertArguments);
+                    if (!$end->result->success) {
+                        throw new \RuntimeException("Error convert $fileName to format $format " . $end->result->getEndMessage());
+                    }
+                    $list[$index] = $end->destination;
                 }
-                $list[$index] = $end->destination;
             }
         }
 

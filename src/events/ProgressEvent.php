@@ -7,7 +7,7 @@
 
 namespace somov\ffmpeg\events;
 
-use somov\common\process\BaseProcess;
+use somov\ffmpeg\process\FfmpegBaseProcess;
 use somov\ffmpeg\process\parser\VideoInfoParser;
 use yii\base\Event;
 use yii\helpers\ArrayHelper;
@@ -30,7 +30,7 @@ class ProgressEvent extends Event
     public $info;
 
     /**
-     * @var BaseProcess
+     * @var FfmpegBaseProcess
      */
     public $process;
 
@@ -59,6 +59,7 @@ class ProgressEvent extends Event
      * @var string
      */
     private $_state;
+
 
     /**
      * ProgressEvent constructor.
@@ -132,13 +133,21 @@ class ProgressEvent extends Event
             (int)$this->info->getDuration());
     }
 
+    /**
+     * @param integer $seconds
+     * @return string
+     */
+    protected function toTime($seconds)
+    {
+        return gmdate($seconds > 3599 ? 'H:i:s' : 'i:s', $seconds);
+    }
 
     /**
      * @return string
      */
     public function processingTime()
     {
-        return gmdate('H:i:s', $this->getStartTimeSeconds() + $this->getTimeSeconds());
+        return $this->toTime($this->getStartTimeSeconds() + $this->getTimeSeconds());
     }
 
 
@@ -147,7 +156,7 @@ class ProgressEvent extends Event
      */
     public function processingTimeEnd()
     {
-        return gmdate('H:i:s', $this->getEndTimeSeconds() + $this->getStartTimeSeconds());
+        return $this->toTime($this->getEndTimeSeconds() + $this->getStartTimeSeconds());
     }
 
     /**
@@ -173,6 +182,65 @@ class ProgressEvent extends Event
 
         return -1;
 
+    }
+
+    /**
+     * Прогнозируемое время
+     * @return int
+     */
+    public function predictedSeconds()
+    {
+        if ($speed = floatval($this->getSpeed())) {
+            return round($this->getEndTimeSeconds() / floatval($this->getSpeed()));
+        }
+        return 0;
+    }
+
+    /**
+     * @return string
+     */
+    public function predictedTime()
+    {
+        return $this->toTime($this->predictedSeconds());
+    }
+
+
+    /** Оставшееся время
+     * @return int
+     */
+    public function getRemainingSeconds()
+    {
+        $time = -(time() - ($this->process->getExecutingStartTime() + $this->predictedSeconds()));
+
+        if ($time >= 0) {
+            return $time;
+        }
+
+        return 0;
+    }
+
+    /**
+     * @return string
+     */
+    public function getRemainingTime()
+    {
+        return $this->toTime($this->getRemainingSeconds());
+    }
+
+    /**
+     * @return int
+     */
+    public function getExecutionSeconds()
+    {
+        return time() - $this->process->getExecutingStartTime();
+    }
+
+    /**
+     * @return string
+     */
+    public function getExecutionTime()
+    {
+        return $this->toTime($this->getExecutionSeconds());
     }
 
     /**
