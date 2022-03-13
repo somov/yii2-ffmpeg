@@ -9,6 +9,7 @@
 namespace somov\ffmpeg\process\parser;
 
 use somov\common\helpers\ArrayHelper;
+use somov\common\helpers\StringHelper;
 use somov\common\process\BaseProcess;
 use somov\ffmpeg\components\ImageFile;
 use somov\ffmpeg\events\ImageEndEvent;
@@ -35,7 +36,7 @@ class ConvertEndImageParser extends ConvertEndParser
      * @param integer $index
      * @param string $file
      * @param string $size
-     * @param float $time
+     * @param int $time
      */
     protected function addImage($index, $file, $size, $time)
     {
@@ -65,15 +66,16 @@ class ConvertEndImageParser extends ConvertEndParser
         $dir = $process->getWorkingDir();
         $params = $process->getParams();
 
-        if (isset($dir)) {
+        if (isset($dir) && is_dir($dir)) {
             $index = 0;
-            $time = (integer)$params['start'];
-            foreach (FileHelper::findFiles($dir, ['only' => [
-                '*.' . $params['extension']
-            ]]) as $file) {
+            $start =  (integer) ArrayHelper::getValue($params, 'start', 0);
+            $files = FileHelper::findFiles($dir, ['only' => ['*.' . $params['extension']]]);
+            sort($files);
+            foreach ($files as $file) {
+                preg_match('/[\d]+/', StringHelper::basename($file), $m);
+                $time = ((int) ltrim($m[0])) + $start;
                 $index++;
                 $this->addImage($index, $file, $params['size'], $time);
-                $time += ArrayHelper::getValue($params, 'period', 0);
             }
         }
     }
